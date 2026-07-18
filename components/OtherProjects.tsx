@@ -1,3 +1,4 @@
+import Reveal from "./Reveal";
 import SectionTag from "./SectionTag";
 
 const projects = [
@@ -20,21 +21,24 @@ const projects = [
 export default function OtherProjects() {
   return (
     <section id="projects" className="border-t border-line px-[6vw] py-[110px]">
-      <SectionTag num="04" label="Practice Files" />
-      <h2 className="display mb-4 text-[clamp(40px,7vw,90px)] leading-[0.9]">
-        Built to
-        <br />
-        learn
-      </h2>
+      <Reveal>
+        <SectionTag num="04" label="Practice Files" />
+        <h2 className="display mb-4 text-[clamp(40px,7vw,90px)] leading-[0.9]">
+          Built to
+          <br />
+          learn
+        </h2>
+      </Reveal>
       <div className="mt-8">
         {projects.map((project, i) => (
-          <div
+          <Reveal
             key={project.name}
-            className={`grid grid-cols-1 gap-8 py-11 sm:grid-cols-[140px_1fr] ${
+            delay={i * 100}
+            className={`group grid grid-cols-1 gap-8 py-11 sm:grid-cols-[140px_1fr] ${
               i > 0 ? "border-t border-line" : ""
             }`}
           >
-            <div className="display text-[44px] leading-none text-crimson-dim sm:text-[70px]">
+            <div className="display text-[44px] leading-none text-crimson-dim transition-colors duration-300 group-hover:text-crimson sm:text-[70px]">
               {project.num}
             </div>
             <div>
@@ -51,12 +55,14 @@ export default function OtherProjects() {
                 {project.stack}
               </p>
             </div>
-          </div>
+          </Reveal>
         ))}
       </div>
-      <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
-        Repos — links coming soon
-      </p>
+      <Reveal>
+        <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
+          Repos — links coming soon
+        </p>
+      </Reveal>
     </section>
   );
 }

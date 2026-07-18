@@ -41,6 +41,9 @@ export default function RootLayout({
       <body
         className={`${bebas.variable} ${fraunces.variable} ${inter.variable} ${jetbrains.variable} antialiased`}
       >
+        <noscript>
+          <style>{`.reveal{opacity:1 !important;transform:none !important;}`}</style>
+        </noscript>
         {children}
       </body>
     </html>
