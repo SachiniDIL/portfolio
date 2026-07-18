@@ -1,3 +1,4 @@
+import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
 import Featured from "@/components/Featured";
@@ -8,17 +9,20 @@ import Contact from "@/components/Contact";
 
 export default function Home() {
   return (
-    <main>
-      <Hero />
-      <About />
-      <Experience />
-      <Featured />
-      <OtherProjects />
-      <Arsenal />
-      <Contact />
-      <footer className="border-t border-line px-[6vw] py-10 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted">
-        © 2026 Sachini Dilrangi — Software Engineer
-      </footer>
-    </main>
+    <>
+      <Header />
+      <main>
+        <Hero />
+        <About />
+        <Experience />
+        <Featured />
+        <OtherProjects />
+        <Arsenal />
+        <Contact />
+        <footer className="border-t border-line px-[6vw] py-10 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted">
+          © 2026 Sachini Dilrangi — Software Engineer
+        </footer>
+      </main>
+    </>
   );
 }
