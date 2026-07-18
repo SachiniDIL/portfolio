@@ -17,7 +17,7 @@ export default function About() {
           <p>
             I&rsquo;m a final-year Software Engineering undergraduate at SLIIT, and most recently
             an Associate Software Engineer at Cloud-eDesign, where I built and shipped production
-            web apps for ten client businesses. I&rsquo;m now targeting roles at companies building
+            web apps for eleven client businesses. I&rsquo;m now targeting roles at companies building
             AI-powered software.
           </p>
           <p>

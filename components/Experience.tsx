@@ -5,7 +5,7 @@ const roles = [
   {
     title: "Associate Software Engineer",
     meta: "Cloud-eDesign · Aug 2025 — Apr 2026",
-    did: "Owned production client work end-to-end for ten live client businesses — Next.js frontends, API routes with HTTP-only cookie auth and Google OAuth, PayHere & Genie payment integrations, AWS S3, and Vercel deployments.",
+    did: "Owned production client work end-to-end for eleven live client businesses — Next.js frontends, API routes with HTTP-only cookie auth and Google OAuth, PayHere & Genie payment integrations, AWS S3, and Vercel deployments.",
   },
   {
     title: "Software Engineer Intern",
@@ -54,6 +54,7 @@ const clients = [
   { name: "Charts.lk", url: "https://charts.lk/" },
   { name: "Agromax", url: "https://agromax.lk/" },
   { name: "Skinovec", url: "https://skinovec.vercel.app/" },
+  { name: "ENERG1", url: "https://www.energ1.lk/" },
 ];
 
 export default function Experience() {
