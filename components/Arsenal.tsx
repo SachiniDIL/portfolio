@@ -30,7 +30,7 @@ export default function Arsenal() {
   return (
     <section id="stack" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
-        <SectionTag num="05" label="The Arsenal" />
+        <SectionTag num="04" label="The Arsenal" />
         <h2 className="display mb-4 text-[clamp(40px,7vw,90px)] leading-[0.9]">
           What I
           <br />

@@ -1,9 +1,8 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
-import Featured from "@/components/Featured";
 import Experience from "@/components/Experience";
-import OtherProjects from "@/components/OtherProjects";
+import Projects from "@/components/Projects";
 import Arsenal from "@/components/Arsenal";
 import Contact from "@/components/Contact";
 
@@ -15,8 +14,7 @@ export default function Home() {
         <Hero />
         <About />
         <Experience />
-        <Featured />
-        <OtherProjects />
+        <Projects />
         <Arsenal />
         <Contact />
         <footer className="border-t border-line px-[6vw] py-10 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted">
