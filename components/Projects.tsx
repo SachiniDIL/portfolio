@@ -77,6 +77,53 @@ const practiceBuilds = [
   },
 ];
 
+const repoLinkClasses =
+  "mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson";
+
+type CaseFile = {
+  num: string;
+  name: string;
+  sub: string;
+  meta: string;
+  paragraphs: string[];
+  stack: string;
+  repo: { label: string; href: string };
+};
+
+const caseFiles: CaseFile[] = [
+  {
+    num: "02",
+    name: "GreenRoute",
+    sub: "intelligent waste management",
+    meta: "Flutter mobile app — Android & iOS · Sep — Oct 2024",
+    paragraphs: [
+      "A Flutter mobile app for an intelligent waste-management system built to optimise garbage-collection routes, serving three roles from one codebase. Residents log garbage bags for collection, request special event pickups, report emergencies and track collection schedules; truck drivers get live collection routes drawn through the Google Maps Directions API with real-time location tracking, calendar schedules and QR-based fuel tracking; disposal officers record and review disposals.",
+      "Firebase handles authentication and real-time data sync across Firestore and the Realtime Database, while a Cloud Functions backend pushes FCM notifications — alerting drivers ahead of route starts — to improve efficiency and cut fuel consumption.",
+    ],
+    stack:
+      "Flutter · Dart · Firebase Auth · Firestore · Realtime Database · Cloud Functions · FCM · Google Maps & Directions API · QR",
+    repo: {
+      label: "github repo",
+      href: "https://github.com/SachiniDIL/greenroute",
+    },
+  },
+  {
+    num: "03",
+    name: "Ruby",
+    sub: "villa operations management",
+    meta: "Group project — 8-person team · Feb — May 2024",
+    paragraphs: [
+      "A web platform managing the day-to-day operations of a villa resort — room reservations and guest check-ins, service requests and customer support, staff scheduling and employee management, plus restaurant, events, transport and billing modules — deployed as a WAR on Apache Tomcat.",
+      "Second-highest contributor of eight: I built large parts of the core domain layer (the JPA entities, repositories and services behind reservations, rooms, staff, events and payments), the villa packages module, and much of the JSP frontend.",
+    ],
+    stack: "Java 21 · Spring Boot 3 · Spring Data JPA · MySQL · JSP · HTML/CSS/JS · Apache Tomcat",
+    repo: {
+      label: "github repo",
+      href: "https://github.com/Silverviles/Ruby",
+    },
+  },
+];
+
 export default function Projects() {
   const [showPractice, setShowPractice] = useState(false);
   const [shotIndex, setShotIndex] = useState(0);
@@ -200,105 +247,48 @@ export default function Projects() {
               href="https://github.com/sandeepaMallawarachchi/smart-lms"
               target="_blank"
               rel="noreferrer"
-              className="mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+              className={repoLinkClasses}
             >
-              github.com/SachiniDIL/smart-lms&nbsp;↗
+              github repo&nbsp;↗
             </a>
           </Reveal>
         </div>
       </div>
 
-      <div className="mt-14 grid grid-cols-1 gap-4 border-t border-line pt-12 sm:grid-cols-[140px_1fr] sm:gap-8">
-        <Reveal>
-          <div className="display text-[44px] leading-none text-crimson-dim sm:text-[70px]">02</div>
-        </Reveal>
-        <div>
+      {caseFiles.map((file) => (
+        <div
+          key={file.name}
+          className="mt-14 grid grid-cols-1 gap-4 border-t border-line pt-12 sm:grid-cols-[140px_1fr] sm:gap-8"
+        >
           <Reveal>
-            <h3 className="display text-[clamp(40px,7vw,84px)] leading-[0.9]">GreenRoute</h3>
-            <p className="serif-i mt-2 text-[clamp(18px,2.5vw,28px)] text-gold">
-              intelligent waste management
-            </p>
-            <p className="mt-6 font-mono text-xs uppercase tracking-[0.15em] text-muted">
-              Flutter mobile app — Android &amp; iOS · Sep — Oct 2024
-            </p>
-          </Reveal>
-          <Reveal delay={100}>
-            <div className="mt-8 max-w-[680px] space-y-5 text-[15.5px] leading-[1.7] text-body">
-              <p>
-                A Flutter mobile app for an intelligent waste-management system built to optimise
-                garbage-collection routes, serving three roles from one codebase. Residents log
-                garbage bags for collection, request special event pickups, report emergencies and
-                track collection schedules; truck drivers get live collection routes drawn through
-                the Google Maps Directions API with real-time location tracking, calendar
-                schedules and QR-based fuel tracking; disposal officers record and review
-                disposals.
-              </p>
-              <p>
-                Firebase handles authentication and real-time data sync across Firestore and the
-                Realtime Database, while a Cloud Functions backend pushes FCM notifications —
-                alerting drivers ahead of route starts — to improve efficiency and cut fuel
-                consumption.
-              </p>
+            <div className="display text-[44px] leading-none text-crimson-dim sm:text-[70px]">
+              {file.num}
             </div>
-            <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
-              Flutter · Dart · Firebase Auth · Firestore · Realtime Database · Cloud Functions ·
-              FCM · Google Maps &amp; Directions API · QR
-            </p>
-            <a
-              href="https://github.com/SachiniDIL/greenroute"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
-            >
-              github.com/SachiniDIL/greenroute&nbsp;↗
-            </a>
           </Reveal>
-        </div>
-      </div>
-
-      <div className="mt-14 grid grid-cols-1 gap-4 border-t border-line pt-12 sm:grid-cols-[140px_1fr] sm:gap-8">
-        <Reveal>
-          <div className="display text-[44px] leading-none text-crimson-dim sm:text-[70px]">03</div>
-        </Reveal>
-        <div>
-          <Reveal>
-            <h3 className="display text-[clamp(40px,7vw,84px)] leading-[0.9]">Ruby</h3>
-            <p className="serif-i mt-2 text-[clamp(18px,2.5vw,28px)] text-gold">
-              villa operations management
-            </p>
-            <p className="mt-6 font-mono text-xs uppercase tracking-[0.15em] text-muted">
-              Group project — 8-person team · Feb — May 2024
-            </p>
-          </Reveal>
-          <Reveal delay={100}>
-            <div className="mt-8 max-w-[680px] space-y-5 text-[15.5px] leading-[1.7] text-body">
-              <p>
-                A web platform managing the day-to-day operations of a villa resort — room
-                reservations and guest check-ins, service requests and customer support, staff
-                scheduling and employee management, plus restaurant, events, transport and billing
-                modules — deployed as a WAR on Apache Tomcat.
+          <div>
+            <Reveal>
+              <h3 className="display text-[clamp(40px,7vw,84px)] leading-[0.9]">{file.name}</h3>
+              <p className="serif-i mt-2 text-[clamp(18px,2.5vw,28px)] text-gold">{file.sub}</p>
+              <p className="mt-6 font-mono text-xs uppercase tracking-[0.15em] text-muted">
+                {file.meta}
               </p>
-              <p>
-                Second-highest contributor of eight: I built large parts of the core domain layer
-                (the JPA entities, repositories and services behind reservations, rooms, staff,
-                events and payments), the villa packages module, and much of the JSP frontend.
+            </Reveal>
+            <Reveal delay={100}>
+              <div className="mt-8 max-w-[680px] space-y-5 text-[15.5px] leading-[1.7] text-body">
+                {file.paragraphs.map((paragraph) => (
+                  <p key={paragraph.slice(0, 32)}>{paragraph}</p>
+                ))}
+              </div>
+              <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
+                {file.stack}
               </p>
-            </div>
-            <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
-              Java 21 · Spring Boot 3 · Spring Data JPA · MySQL · JSP · HTML/CSS/JS · Apache
-              Tomcat
-            </p>
-            <a
-              href="https://github.com/Silverviles/Ruby"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
-            >
-              github.com/SachiniDIL/Ruby&nbsp;↗
-            </a>
-          </Reveal>
+              <a href={file.repo.href} target="_blank" rel="noreferrer" className={repoLinkClasses}>
+                {file.repo.label}&nbsp;↗
+              </a>
+            </Reveal>
+          </div>
         </div>
-      </div>
+      ))}
 
       <div className="mt-14 border-y border-line">
         <button

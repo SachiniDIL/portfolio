@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 export default function Reveal({
   children,
@@ -13,8 +13,12 @@ export default function Reveal({
   delay?: number;
   as?: "div" | "span";
 }) {
-  const ref = useRef<HTMLDivElement | HTMLSpanElement>(null);
+  const ref = useRef<HTMLElement | null>(null);
   const [shown, setShown] = useState(false);
+
+  const setRef = useCallback((node: HTMLElement | null) => {
+    ref.current = node;
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
@@ -47,7 +51,7 @@ export default function Reveal({
   const Tag = as;
   return (
     <Tag
-      ref={ref as React.Ref<never>}
+      ref={setRef}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
       className={`reveal ${shown ? "reveal-shown" : ""} ${className}`}
     >

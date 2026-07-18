@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { site } from "@/lib/site";
 
 const links = [
   { label: "About", href: "#about" },
@@ -12,13 +13,16 @@ const links = [
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
 
   // Unlock body scroll synchronously so the anchor jump isn't swallowed
   // by overflow:hidden before React re-renders.
-  const close = () => {
+  const close = useCallback(() => {
     document.body.style.overflow = "";
     setOpen(false);
-  };
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -27,17 +31,41 @@ export default function Header() {
     };
   }, [open]);
 
+  // Move focus into the dialog on open and back to the trigger on close.
+  useEffect(() => {
+    if (open) {
+      wasOpen.current = true;
+      menuRef.current?.querySelector("button")?.focus();
+    } else if (wasOpen.current) {
+      wasOpen.current = false;
+      menuButtonRef.current?.focus();
+    }
+  }, [open]);
+
+  // Escape closes; Tab is trapped inside the dialog while it is open.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        document.body.style.overflow = "";
-        setOpen(false);
+        close();
+        return;
+      }
+      if (e.key !== "Tab" || !menuRef.current) return;
+      const focusables = menuRef.current.querySelectorAll<HTMLElement>("a[href], button");
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, close]);
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-sm">
@@ -61,7 +89,7 @@ export default function Header() {
             ))}
           </nav>
           <a
-            href="/Sachini-Dilrangi-CV.pdf"
+            href={site.cvPath}
             download
             className="border border-line px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
           >
@@ -69,6 +97,7 @@ export default function Header() {
           </a>
         </div>
         <button
+          ref={menuButtonRef}
           type="button"
           aria-expanded={open}
           aria-controls="mobile-menu"
@@ -82,6 +111,10 @@ export default function Header() {
       {open && (
         <div
           id="mobile-menu"
+          ref={menuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
           className="fixed inset-0 z-50 flex flex-col bg-bg/95 backdrop-blur-md md:hidden"
         >
           <div className="flex h-14 items-center justify-between border-b border-line px-[6vw]">
@@ -109,7 +142,7 @@ export default function Header() {
               </a>
             ))}
             <a
-              href="/Sachini-Dilrangi-CV.pdf"
+              href={site.cvPath}
               download
               onClick={close}
               className="mt-8 w-fit border border-line px-6 py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"

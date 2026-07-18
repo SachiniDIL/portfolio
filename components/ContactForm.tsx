@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { site } from "@/lib/site";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
@@ -32,7 +33,7 @@ export default function ContactForm() {
         // SMTP not configured yet — fall back to the visitor's mail client.
         const subject = encodeURIComponent(`Portfolio contact from ${name}`);
         const body = encodeURIComponent(`${message}\n\n— ${name} (${email})`);
-        window.location.href = `mailto:sdilrangi58@gmail.com?subject=${subject}&body=${body}`;
+        window.location.href = `mailto:${site.email}?subject=${subject}&body=${body}`;
         setStatus("idle");
         return;
       }
@@ -61,7 +62,14 @@ export default function ContactForm() {
       <div className="flex flex-col gap-8">
         <label className="block">
           <span className={labelClasses}>Name</span>
-          <input name="name" type="text" required placeholder="Your name" className={fieldClasses} />
+          <input
+            name="name"
+            type="text"
+            required
+            autoComplete="name"
+            placeholder="Your name"
+            className={fieldClasses}
+          />
         </label>
         <label className="block">
           <span className={labelClasses}>Email</span>
@@ -69,6 +77,7 @@ export default function ContactForm() {
             name="email"
             type="email"
             required
+            autoComplete="email"
             placeholder="you@example.com"
             className={fieldClasses}
           />

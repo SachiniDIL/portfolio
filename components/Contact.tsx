@@ -1,6 +1,10 @@
 import ContactForm from "./ContactForm";
 import Reveal from "./Reveal";
 import SectionTag from "./SectionTag";
+import { site } from "@/lib/site";
+
+const directLinkClasses =
+  "w-fit border-b border-line pb-1.5 font-mono text-base transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson";
 
 export default function Contact() {
   return (
@@ -22,33 +26,26 @@ export default function Contact() {
             Or reach me directly
           </div>
           <div className="mt-6 flex flex-col gap-3">
-            <a
-              href="mailto:sdilrangi58@gmail.com"
-              className="w-fit border-b border-line pb-1.5 font-mono text-base text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
-            >
-              sdilrangi58@gmail.com
+            <a href={`mailto:${site.email}`} className={`${directLinkClasses} text-paper`}>
+              {site.email}
             </a>
             <a
-              href="https://github.com/SachiniDIL"
+              href={site.github}
               target="_blank"
               rel="noreferrer"
-              className="w-fit border-b border-line pb-1.5 font-mono text-base text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+              className={`${directLinkClasses} text-paper`}
             >
-              github.com/SachiniDIL
+              {site.githubLabel}
             </a>
             <a
-              href="https://www.linkedin.com/in/sachini-dilrangi-434128242"
+              href={site.linkedin}
               target="_blank"
               rel="noreferrer"
-              className="w-fit border-b border-line pb-1.5 font-mono text-base text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+              className={`${directLinkClasses} text-paper`}
             >
-              linkedin.com/in/sachini-dilrangi
+              {site.linkedinLabel}
             </a>
-            <a
-              href="/Sachini-Dilrangi-CV.pdf"
-              download
-              className="w-fit border-b border-line pb-1.5 font-mono text-base text-gold transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
-            >
+            <a href={site.cvPath} download className={`${directLinkClasses} text-gold`}>
               download cv (pdf) ↓
             </a>
           </div>
