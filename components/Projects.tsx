@@ -114,6 +114,54 @@ export default function Projects() {
         </div>
       </div>
 
+      <div className="mt-14 grid grid-cols-1 gap-4 border-t border-line pt-12 sm:grid-cols-[140px_1fr] sm:gap-8">
+        <Reveal>
+          <div className="display text-[44px] leading-none text-crimson-dim sm:text-[70px]">02</div>
+        </Reveal>
+        <div>
+          <Reveal>
+            <h3 className="display text-[clamp(40px,7vw,84px)] leading-[0.9]">GreenRoute</h3>
+            <p className="serif-i mt-2 text-[clamp(18px,2.5vw,28px)] text-gold">
+              intelligent waste management
+            </p>
+            <p className="mt-6 font-mono text-xs uppercase tracking-[0.15em] text-muted">
+              Flutter mobile app — Android &amp; iOS · Sep — Oct 2024
+            </p>
+          </Reveal>
+          <Reveal delay={100}>
+            <div className="mt-8 max-w-[680px] space-y-5 text-[15.5px] leading-[1.7] text-body">
+              <p>
+                A Flutter mobile app for an intelligent waste-management system built to optimise
+                garbage-collection routes, serving three roles from one codebase. Residents log
+                garbage bags for collection, request special event pickups, report emergencies and
+                track collection schedules; truck drivers get live collection routes drawn through
+                the Google Maps Directions API with real-time location tracking, calendar
+                schedules and QR-based fuel tracking; disposal officers record and review
+                disposals.
+              </p>
+              <p>
+                Firebase handles authentication and real-time data sync across Firestore and the
+                Realtime Database, while a Cloud Functions backend pushes FCM notifications —
+                alerting drivers ahead of route starts — to improve efficiency and cut fuel
+                consumption.
+              </p>
+            </div>
+            <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
+              Flutter · Dart · Firebase Auth · Firestore · Realtime Database · Cloud Functions ·
+              FCM · Google Maps &amp; Directions API · QR
+            </p>
+            <a
+              href="https://github.com/SachiniDIL/greenroute"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+            >
+              github.com/SachiniDIL/greenroute&nbsp;↗
+            </a>
+          </Reveal>
+        </div>
+      </div>
+
       <div className="mt-14 border-y border-line">
         <button
           type="button"
