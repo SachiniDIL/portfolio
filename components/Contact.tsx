@@ -36,9 +36,21 @@ export default function Contact() {
             >
               github.com/SachiniDIL
             </a>
-            <span className="w-fit pb-1.5 font-mono text-base text-muted/60">
-              linkedin — coming soon
-            </span>
+            <a
+              href="https://www.linkedin.com/in/sachini-dilrangi-434128242"
+              target="_blank"
+              rel="noreferrer"
+              className="w-fit border-b border-line pb-1.5 font-mono text-base text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+            >
+              linkedin.com/in/sachini-dilrangi
+            </a>
+            <a
+              href="/Sachini-Dilrangi-CV.pdf"
+              download
+              className="w-fit border-b border-line pb-1.5 font-mono text-base text-gold transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+            >
+              download cv (pdf) ↓
+            </a>
           </div>
         </Reveal>
       </div>

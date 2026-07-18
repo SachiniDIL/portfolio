@@ -48,17 +48,26 @@ export default function Header() {
         >
           Sachini Dilrangi<span className="text-crimson">.</span>
         </a>
-        <nav aria-label="Primary" className="hidden items-center gap-7 md:flex">
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted transition-colors duration-200 hover:text-crimson"
-            >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+        <div className="hidden items-center gap-7 md:flex">
+          <nav aria-label="Primary" className="flex items-center gap-7">
+            {links.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted transition-colors duration-200 hover:text-crimson"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+          <a
+            href="/Sachini-Dilrangi-CV.pdf"
+            download
+            className="border border-line px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
+          >
+            CV ↓
+          </a>
+        </div>
         <button
           type="button"
           aria-expanded={open}
@@ -99,6 +108,14 @@ export default function Header() {
                 </span>
               </a>
             ))}
+            <a
+              href="/Sachini-Dilrangi-CV.pdf"
+              download
+              onClick={close}
+              className="mt-8 w-fit border border-line px-6 py-3 font-mono text-[11px] uppercase tracking-[0.2em] text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
+            >
+              Download CV ↓
+            </a>
           </nav>
         </div>
       )}

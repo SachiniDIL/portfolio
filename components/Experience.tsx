@@ -5,8 +5,7 @@ const roles = [
   {
     title: "Associate Software Engineer",
     meta: "Cloud-eDesign · Aug 2025 — Apr 2026",
-    did: "Owned production client work end-to-end for eleven live client businesses — Next.js frontends, API routes with HTTP-only cookie auth and Google OAuth, PayHere & Genie payment integrations, AWS S3, and Vercel deployments.",
-  },
+    did: "Shipped production work across a wider set of client projects than the sites listed below — owning some end-to-end and collaborating on others — spanning Next.js frontends, API routes with HTTP-only cookie auth and Google OAuth, PayHere & Genie payment integrations, AWS S3, and Vercel deployments.",  },
   {
     title: "Software Engineer Intern",
     meta: "Cloud-eDesign · Feb 2025 — Aug 2025",

@@ -17,8 +17,8 @@ export default function About() {
           <p>
             I&rsquo;m a final-year Software Engineering undergraduate at SLIIT, and most recently
             an Associate Software Engineer at Cloud-eDesign, where I built and shipped production
-            web apps for eleven client businesses. I&rsquo;m now targeting roles at companies building
-            AI-powered software.
++           web apps for client businesses — some solo, some with a team. I&rsquo;m now targeting
++           roles at companies building AI-powered software.
           </p>
           <p>
             I care about understanding <span className="serif-i text-gold">why</span> a technical
