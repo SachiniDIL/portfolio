@@ -1,9 +1,43 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import CountUp from "./CountUp";
 import Reveal from "./Reveal";
 import SectionTag from "./SectionTag";
+import liveAiFeedback from "@/public/smartlms/live-ai-feedback.png";
+import similarityReport from "@/public/smartlms/similarity-report.png";
+import versionHistory from "@/public/smartlms/version-history.png";
+import versionDiff from "@/public/smartlms/version-diff.png";
+import gradingOverride from "@/public/smartlms/grading-override.png";
+
+const screenshots = [
+  {
+    src: liveAiFeedback,
+    alt: "SmartLMS answer editor with a live AI feedback panel scoring grammar, clarity, completeness and relevance, alongside similarity detection",
+    caption: "Live AI feedback & similarity detection",
+  },
+  {
+    src: similarityReport,
+    alt: "SmartLMS plagiarism report listing ten matched sources with confidence levels, match percentages and the matching text in the answer",
+    caption: "Plagiarism report — matched sources",
+  },
+  {
+    src: versionHistory,
+    alt: "SmartLMS version history showing six submission versions with AI score, plagiarism percentage, AI grade and word count per version",
+    caption: "Version-controlled submissions",
+  },
+  {
+    src: versionDiff,
+    alt: "SmartLMS side-by-side diff of two submission versions with per-question word, mark and plagiarism changes",
+    caption: "Side-by-side version diff",
+  },
+  {
+    src: gradingOverride,
+    alt: "SmartLMS lecturer grading view with an immutable AI-generated mark and an override mark and feedback form",
+    caption: "AI-suggested marks with instructor override",
+  },
+];
 
 const stats = [
   {
@@ -103,12 +137,35 @@ export default function Projects() {
               </div>
             ))}
           </div>
+          <div className="mt-10 columns-1 gap-4 sm:columns-2">
+            {screenshots.map((shot, i) => (
+              <Reveal key={shot.caption} delay={i * 80} className="mb-4 break-inside-avoid">
+                <a
+                  href={shot.src.src}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block border border-line bg-bg2 p-2 transition-colors duration-200 hover:border-crimson"
+                >
+                  <Image
+                    src={shot.src}
+                    alt={shot.alt}
+                    placeholder="blur"
+                    sizes="(min-width: 640px) 40vw, 88vw"
+                    className="h-auto w-full"
+                  />
+                  <p className="px-1 pb-1 pt-2.5 font-mono text-[10.5px] uppercase tracking-[0.15em] text-muted">
+                    {shot.caption}
+                  </p>
+                </a>
+              </Reveal>
+            ))}
+          </div>
           <Reveal delay={100}>
             <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
               Spring Boot · PostgreSQL · Redis · Next.js · TypeScript · LLM/NLP integration
             </p>
             <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
-              Screenshots · Repo · Live demo — coming soon
+              Repo · Live demo — coming soon
             </p>
           </Reveal>
         </div>
