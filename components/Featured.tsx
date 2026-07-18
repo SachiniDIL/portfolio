@@ -29,7 +29,7 @@ export default function Featured() {
   return (
     <section id="work" className="border-t border-line px-[6vw] py-[110px]">
       <Reveal>
-        <SectionTag num="02" label="Featured Case File" />
+        <SectionTag num="03" label="Featured Case File" />
         <h2 className="display text-[clamp(48px,9vw,110px)] leading-[0.9]">SmartLMS</h2>
         <p className="serif-i mt-2 text-[clamp(18px,2.5vw,28px)] text-gold">
           versioned submissions &amp; ai feedback

@@ -2,8 +2,16 @@ import Reveal from "./Reveal";
 import SectionTag from "./SectionTag";
 
 const roles = [
-  { title: "Associate Software Engineer", dates: "Aug 2025 — Apr 2026" },
-  { title: "Software Engineer Intern", dates: "Feb 2025 — Aug 2025" },
+  {
+    title: "Associate Software Engineer",
+    meta: "Cloud-eDesign · Aug 2025 — Apr 2026",
+    did: "Owned production client work end-to-end for ten live client businesses — Next.js frontends, API routes with HTTP-only cookie auth and Google OAuth, PayHere & Genie payment integrations, AWS S3, and Vercel deployments.",
+  },
+  {
+    title: "Software Engineer Intern",
+    meta: "Cloud-eDesign · Feb 2025 — Aug 2025",
+    did: "Built and shipped features on the same production client codebases in Agile sprints with Git and Jira; promoted to Associate Software Engineer after six months.",
+  },
 ];
 
 const skillGroups = [
@@ -52,38 +60,41 @@ export default function Experience() {
   return (
     <section id="experience" className="border-t border-line px-[6vw] py-[110px]">
       <Reveal>
-        <SectionTag num="03" label="The Record" />
-        <h2 className="display mb-6 text-[clamp(40px,7vw,90px)] leading-[0.9]">Cloud-eDesign</h2>
-        <p className="max-w-[640px] text-[15.5px] leading-[1.7] text-body">
-          Production client work across frontend, backend &amp; auth, data, payments and
-          deployment — my most recent role.
-        </p>
+        <SectionTag num="02" label="The Record" />
       </Reveal>
 
-      <div className="mt-10 divide-y divide-line border-y border-line">
+      <div className="divide-y divide-line border-y border-line">
         {roles.map((role, i) => (
-          <Reveal
-            key={role.title}
-            delay={i * 100}
-            className="group flex flex-wrap items-baseline justify-between gap-2 py-[26px]"
-          >
-            <span className="display text-[clamp(24px,4vw,40px)] text-paper transition-colors duration-300 group-hover:text-crimson">
-              {role.title}
-            </span>
-            <span className="font-mono text-[13px] tracking-[0.05em] text-gold">{role.dates}</span>
+          <Reveal key={role.title} delay={i * 100} className="group py-9">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+              <h3 className="display text-[clamp(32px,5vw,64px)] leading-[0.95] text-paper transition-colors duration-300 group-hover:text-crimson">
+                {role.title}
+              </h3>
+              <span className="font-mono text-[13px] tracking-[0.05em] text-gold">
+                {role.meta}
+              </span>
+            </div>
+            <p className="mt-4 max-w-[680px] text-[15.5px] leading-[1.7] text-body">{role.did}</p>
           </Reveal>
         ))}
       </div>
 
-      <div className="mt-14 grid gap-x-12 gap-y-8 md:grid-cols-2">
-        {skillGroups.map((group, i) => (
-          <Reveal key={group.label} delay={i * 80}>
-            <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">
-              {group.label}
-            </div>
-            <p className="mt-2 font-mono text-[12.5px] leading-[1.8] text-muted">{group.items}</p>
-          </Reveal>
-        ))}
+      <div className="mt-14">
+        <Reveal>
+          <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">
+            Skills &amp; technologies used
+          </div>
+        </Reveal>
+        <div className="mt-6 grid gap-x-12 gap-y-8 md:grid-cols-2">
+          {skillGroups.map((group, i) => (
+            <Reveal key={group.label} delay={i * 80}>
+              <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
+                {group.label}
+              </div>
+              <p className="mt-2 font-mono text-[12.5px] leading-[1.8] text-muted">{group.items}</p>
+            </Reveal>
+          ))}
+        </div>
       </div>
 
       <div className="mt-14">
