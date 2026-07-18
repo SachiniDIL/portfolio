@@ -79,6 +79,9 @@ const practiceBuilds = [
 
 export default function Projects() {
   const [showPractice, setShowPractice] = useState(false);
+  const [shotIndex, setShotIndex] = useState(0);
+  const shot = screenshots[shotIndex];
+  const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
     <section id="work" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
@@ -137,36 +140,70 @@ export default function Projects() {
               </div>
             ))}
           </div>
-          <div className="mt-10 columns-1 gap-4 sm:columns-2">
-            {screenshots.map((shot, i) => (
-              <Reveal key={shot.caption} delay={i * 80} className="mb-4 break-inside-avoid">
-                <a
-                  href={shot.src.src}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block border border-line bg-bg2 p-2 transition-colors duration-200 hover:border-crimson"
-                >
+          <Reveal delay={100}>
+            <div className="mt-10 max-w-[600px]">
+              <a
+                href={shot.src.src}
+                target="_blank"
+                rel="noreferrer"
+                title="Open full-size screenshot"
+                className="block border border-line bg-bg2 p-2 transition-colors duration-200 hover:border-crimson"
+              >
+                <div className="relative h-[280px] sm:h-[360px]">
                   <Image
                     src={shot.src}
                     alt={shot.alt}
-                    placeholder="blur"
-                    sizes="(min-width: 640px) 40vw, 88vw"
-                    className="h-auto w-full"
+                    fill
+                    sizes="(min-width: 640px) 600px, 88vw"
+                    className="object-contain"
                   />
-                  <p className="px-1 pb-1 pt-2.5 font-mono text-[10.5px] uppercase tracking-[0.15em] text-muted">
-                    {shot.caption}
-                  </p>
-                </a>
-              </Reveal>
-            ))}
-          </div>
+                </div>
+              </a>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                <p
+                  aria-live="polite"
+                  className="font-mono text-[10.5px] uppercase tracking-[0.15em] text-muted"
+                >
+                  {shot.caption}
+                </p>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="font-mono text-[11px] tracking-[0.1em] text-muted">
+                    {pad(shotIndex + 1)} / {pad(screenshots.length)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Previous screenshot"
+                    onClick={() =>
+                      setShotIndex((i) => (i - 1 + screenshots.length) % screenshots.length)
+                    }
+                    className="flex h-8 w-8 items-center justify-center border border-line text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next screenshot"
+                    onClick={() => setShotIndex((i) => (i + 1) % screenshots.length)}
+                    className="flex h-8 w-8 items-center justify-center border border-line text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Reveal>
           <Reveal delay={100}>
             <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
               Spring Boot · PostgreSQL · Redis · Next.js · TypeScript · LLM/NLP integration
             </p>
-            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
-              Repo · Live demo — coming soon
-            </p>
+            <a
+              href="https://github.com/sandeepaMallawarachchi/smart-lms"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
+            >
+              github.com/SachiniDIL/smart-lms&nbsp;↗
+            </a>
           </Reveal>
         </div>
       </div>
@@ -257,7 +294,7 @@ export default function Projects() {
               rel="noreferrer"
               className="mt-4 inline-block w-fit border-b border-line pb-1.5 font-mono text-[13px] text-paper transition-all duration-200 hover:translate-x-1 hover:border-crimson hover:text-crimson"
             >
-              github.com/Silverviles/Ruby&nbsp;↗
+              github.com/SachiniDIL/Ruby&nbsp;↗
             </a>
           </Reveal>
         </div>
