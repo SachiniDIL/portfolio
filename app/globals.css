@@ -94,7 +94,13 @@ body {
   .arsenal-tag:not(:last-child)::after {
     content: "/";
     color: var(--crimson-dim);
-    margin-left: 30px;
+    margin-left: 18px;
+  }
+
+  @media (min-width: 640px) {
+    .arsenal-tag:not(:last-child)::after {
+      margin-left: 30px;
+    }
   }
 
   .reveal {

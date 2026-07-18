@@ -28,7 +28,7 @@ const tags = [
 
 export default function Arsenal() {
   return (
-    <section id="stack" className="border-t border-line px-[6vw] py-[110px]">
+    <section id="stack" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
         <SectionTag num="05" label="The Arsenal" />
         <h2 className="display mb-4 text-[clamp(40px,7vw,90px)] leading-[0.9]">
@@ -43,7 +43,7 @@ export default function Arsenal() {
             key={tag}
             as="span"
             delay={i * 40}
-            className="arsenal-tag display py-3.5 pr-[30px] text-[clamp(26px,4vw,46px)] tracking-[0.02em] text-paper"
+            className="arsenal-tag display py-2.5 pr-[18px] text-[clamp(26px,4vw,46px)] tracking-[0.02em] text-paper sm:py-3.5 sm:pr-[30px]"
           >
             <span className="cursor-default transition-colors duration-200 hover:text-crimson">
               {tag}

@@ -3,7 +3,7 @@ import SectionTag from "./SectionTag";
 
 export default function About() {
   return (
-    <section id="about" className="border-t border-line px-[6vw] py-[110px]">
+    <section id="about" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
         <SectionTag num="01" label="The Brief" />
         <h2 className="display mb-10 text-[clamp(40px,7vw,90px)] leading-[0.9]">

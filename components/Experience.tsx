@@ -59,7 +59,7 @@ const clients = [
 
 export default function Experience() {
   return (
-    <section id="experience" className="border-t border-line px-[6vw] py-[110px]">
+    <section id="experience" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
         <SectionTag num="02" label="The Record" />
       </Reveal>

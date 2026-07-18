@@ -3,10 +3,10 @@ import SectionTag from "./SectionTag";
 
 export default function Contact() {
   return (
-    <section id="contact" className="border-t border-line px-[6vw] py-[110px]">
+    <section id="contact" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
         <SectionTag num="06" label="Get In Touch" />
-        <h2 className="display text-[clamp(46px,10vw,130px)] leading-[0.85]">
+        <h2 className="display text-[clamp(38px,10vw,130px)] leading-[0.85]">
           Start a
           <br />
           <span className="serif-i block normal-case text-crimson">conversation.</span>

@@ -20,7 +20,7 @@ const projects = [
 
 export default function OtherProjects() {
   return (
-    <section id="projects" className="border-t border-line px-[6vw] py-[110px]">
+    <section id="projects" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
         <SectionTag num="04" label="Practice Files" />
         <h2 className="display mb-4 text-[clamp(40px,7vw,90px)] leading-[0.9]">
@@ -34,7 +34,7 @@ export default function OtherProjects() {
           <Reveal
             key={project.name}
             delay={i * 100}
-            className={`group grid grid-cols-1 gap-8 py-11 sm:grid-cols-[140px_1fr] ${
+            className={`group grid grid-cols-1 gap-4 py-8 sm:gap-8 sm:py-11 sm:grid-cols-[140px_1fr] ${
               i > 0 ? "border-t border-line" : ""
             }`}
           >

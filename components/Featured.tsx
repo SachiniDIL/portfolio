@@ -27,7 +27,7 @@ const stats = [
 
 export default function Featured() {
   return (
-    <section id="work" className="border-t border-line px-[6vw] py-[110px]">
+    <section id="work" className="border-t border-line px-[6vw] py-[70px] md:py-[110px]">
       <Reveal>
         <SectionTag num="03" label="Featured Case File" />
         <h2 className="display text-[clamp(48px,9vw,110px)] leading-[0.9]">SmartLMS</h2>
@@ -55,7 +55,7 @@ export default function Featured() {
       <div className="mt-14 grid grid-cols-1 gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, i) => (
           <div key={stat.label} className="group bg-bg transition-colors duration-300 hover:bg-bg2">
-            <Reveal delay={i * 120} className="p-7">
+            <Reveal delay={i * 120} className="p-5 sm:p-7">
               <div className="display text-[clamp(44px,5vw,64px)] leading-none text-paper transition-all duration-300 group-hover:[text-shadow:0_0_40px_rgba(200,16,46,0.5)]">
                 <CountUp {...stat.count} />
               </div>
