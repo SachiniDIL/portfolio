@@ -2,30 +2,26 @@ import Reveal from "./Reveal";
 import SectionTag from "./SectionTag";
 
 const tags = [
-  "Next.js 15",
+  "Next.js",
   "React",
   "TypeScript",
   "Tailwind CSS",
   "TanStack Query",
-  "React Testing Library",
   "Spring Boot",
-  "JUnit",
+  "Java",
   "MongoDB",
   "PostgreSQL",
   "MySQL",
-  "AWS S3",
   "Docker",
-  "GitHub Actions & CI/CD",
+  "CI/CD",
   "Git",
-  "Flask",
-  "Python (basics)",
-  "Kotlin",
-  "Flutter & Dart",
+  "AWS S3",
+  "Flutter",
   "Firebase",
-  "PayHere & Genie",
-  "Google OAuth",
-  "Accessibility & WCAG",
+  "OAuth",
+  "Testing",
   "SEO",
+  "Accessibility",
 ];
 
 export default function Arsenal() {
