@@ -12,6 +12,7 @@ export async function GET(req: Request) {
   }
 
   revalidatePath("/blog");
+  revalidatePath("/sitemap.xml");
   if (slug) {
     revalidatePath(`/blog/${slug}`);
   }

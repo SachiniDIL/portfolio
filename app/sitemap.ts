@@ -2,6 +2,12 @@ import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/posts";
 import { site } from "@/lib/site";
 
+// Without this, sitemap.ts has no dynamic APIs to force dynamic rendering,
+// so Next treats it as fully static — computed once at build time and never
+// refreshed. If that one build ever ran with Mongo unreachable, it bakes in
+// an empty sitemap permanently, with no way to self-correct.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await getAllPosts();
 
