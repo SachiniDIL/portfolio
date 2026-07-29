@@ -1,0 +1,210 @@
+---
+title: "TanStack Query in Plain English: What Actually Happens When You Call useQuery"
+slug: "tanstack-query-in-plain-english"
+excerpt: "A plain-English walkthrough of what useQuery actually does under the hood — the cache, queryKey, staleTime, and invalidateQueries, all as one consistent rule."
+coverImage: "/blog/2.png"
+coverImageAlt: "A grid of dark red cells receding into the distance with a few glowing gold cells lit up, evoking fresh rows in a lookup table"
+tags: ["react", "tanstack-query", "data-fetching"]
+draft: false
+---
+
+`useQuery` looks deceptively small:
+
+```tsx
+const { data, isPending, isError } = useQuery({
+  queryKey: ["posts"],
+  queryFn: getPosts,
+});
+```
+
+Three lines, and suddenly you have loading states, error handling, caching, deduplication, and background refreshing — all without writing a single `useState` or `useEffect`. It feels a little like magic the first time you use it.
+
+It isn't magic. Here's exactly what's happening behind those three lines, in plain English.
+
+## Start with the cache — a lookup table in memory
+
+The very first thing to understand has nothing to do with `useQuery` itself. It's the `QueryClient` — the object you create once, usually like this:
+
+```tsx
+const [queryClient] = useState(() => new QueryClient());
+```
+
+Think of the `QueryClient` as a big lookup table sitting in your browser's memory (RAM). Each row in that table is identified by a **key**, and holds a **value** plus some bookkeeping information. That's it. That's the whole cache.
+
+```
+Cache (inside the QueryClient):
+┌──────────────┬─────────────────────────────────────┐
+│ Key           │ Value + bookkeeping                 │
+├──────────────┼─────────────────────────────────────┤
+│ ["posts"]     │ data: [...], status: 'success', ... │
+│ ["user", "5"] │ data: {...}, status: 'success', ... │
+└──────────────┴─────────────────────────────────────┘
+```
+
+Nothing is written to disk. Refresh the page, and this table is gone — it lives only as long as the browser tab does.
+
+## `queryKey` is just the row's identifier
+
+```tsx
+useQuery({ queryKey: ["posts"], queryFn: getPosts })
+```
+
+`queryKey` is an array — `["posts"]` — and it's simply the name of the row in that lookup table. Two components that both write `queryKey: ["posts"]` are pointing at the exact same row. That's the whole trick behind sharing data across components — no context, no prop drilling, just matching keys.
+
+Want a more specific key? Add more to the array:
+
+```tsx
+useQuery({ queryKey: ["post", "42"] })   // one specific post
+useQuery({ queryKey: ["post", "99"] })   // a different post, different row
+```
+
+`["post", "42"]` and `["post", "99"]` are two separate rows. Change any part of the array, and you're pointing at a different cache entry entirely.
+
+## `queryFn` is just "how do I fill this row if it's empty"
+
+```tsx
+useQuery({ queryKey: ["posts"], queryFn: getPosts })
+```
+
+`queryFn` is a plain async function. It has one job: go get the data and return it. That's all — no special TanStack syntax, no hooks inside it, just:
+
+```tsx
+async function getPosts() {
+  const res = await fetch("/api/posts");
+  return res.json();
+}
+```
+
+TanStack Query doesn't call this function on some fixed schedule. It calls it **only when it decides the row needs filling** — which brings us to the actual sequence of events.
+
+## What happens the moment `useQuery` runs
+
+Here's the internal decision tree, spelled out:
+
+```
+useQuery({ queryKey: ["posts"], queryFn: getPosts }) runs
+        ↓
+Does the cache have a row for ["posts"]?
+        ↓
+NO  → call queryFn() → store the result under ["posts"] → component re-renders with data
+        ↓
+YES → is that row still "fresh" (within staleTime)?
+        ↓
+      YES → hand back the existing value immediately, do nothing else
+        ↓
+      NO  → hand back the existing value immediately, AND
+            quietly call queryFn() again in the background,
+            then update the row once the new result arrives
+```
+
+Every single feature people associate with TanStack Query — no unnecessary loading spinners, instant navigation, background refresh — falls directly out of this one decision tree. There's no separate mechanism for each of those things. It's all the same check, applied every time `useQuery` runs.
+
+## `isPending`, `isError`, `isFetching` — reading the row's status
+
+Every row in the cache carries a status alongside its data:
+
+```
+{
+  data: [...],
+  status: 'success',      // 'pending' | 'error' | 'success'
+  fetchStatus: 'idle',    // 'fetching' | 'paused' | 'idle'
+}
+```
+
+`useQuery`'s return values are just a friendly window into these two fields:
+
+```tsx
+const { data, isPending, isError, isFetching } = useQuery({...})
+```
+
+- `isPending` → true only when `status` is `'pending'` — meaning there is genuinely no data yet, anywhere, for this key. This is the "first load" spinner.
+- `isError` → true when `status` is `'error'` — the `queryFn` threw.
+- `isFetching` → true when `fetchStatus` is `'fetching'` — a request is currently in flight, **regardless of whether you already have data**.
+
+That last point is the one that trips people up. `isPending` and `isFetching` are not describing the same thing:
+
+```
+First ever visit:
+  status: 'pending', fetchStatus: 'fetching'
+  → isPending: true, isFetching: true
+  → show a full loading state, there's nothing to display yet
+
+Returning visit, stale data, background refresh in progress:
+  status: 'success', fetchStatus: 'fetching'
+  → isPending: false, isFetching: true
+  → show the existing data AND a subtle "refreshing" indicator
+  → never show a blank loading screen for data you already have
+```
+
+This is the entire mechanism behind what people call "stale-while-revalidate" — show what you have, quietly get something fresher, swap it in when it arrives. No flicker, no blank states for data the user has already seen.
+
+## `staleTime` — a promise TanStack Query makes to itself
+
+```tsx
+new QueryClient({
+  defaultOptions: { queries: { staleTime: 60 * 1000 } }
+})
+```
+
+The moment a `queryFn` successfully resolves, TanStack Query stamps the row with `dataUpdatedAt: <timestamp>`. From then on, whenever anything asks "is this fresh?", the check is just:
+
+```
+is (Date.now() - dataUpdatedAt) less than staleTime?
+```
+
+If yes — fresh, don't refetch, just hand back what's there. If no — stale, willing to refetch on the next opportunity. That's the entire mechanism. No timers running in the background counting down; it's just a subtraction, checked at the moment something asks.
+
+Important detail: going stale doesn't refetch anything by itself. It only means the next **trigger** — a component mounting, the window regaining focus, a manual `invalidateQueries` call — is now allowed to actually fire a new request. Stale data sitting untouched, with nobody asking about it, just sits there.
+
+## `invalidateQueries` — manually marking a row stale, right now
+
+```tsx
+queryClient.invalidateQueries({ queryKey: ["posts"] })
+```
+
+This does exactly one thing: it finds the row for `["posts"]` and forces its status to stale **immediately**, ignoring whatever `staleTime` said. If any component is currently mounted and watching that key, it doesn't even wait for a new trigger — it refetches right away.
+
+This is why it's the standard move after a mutation:
+
+```tsx
+const mutation = useMutation({
+  mutationFn: createPost,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["posts"] });
+  },
+});
+```
+
+You just changed the data on the server via `createPost`. TanStack Query has no way of knowing that on its own — it only knows what happens through `queryFn` calls. `invalidateQueries` is you telling it, explicitly: "the ['posts'] row is wrong now, go get the real thing."
+
+## Putting the whole picture together
+
+```
+QueryClient
+  → a lookup table living in browser memory, one row per queryKey
+
+queryKey
+  → the row's name; matching keys across components = shared data
+
+queryFn
+  → the plain function that fills a row when called
+
+useQuery
+  → on every render, checks the row for this key:
+    missing → fetch it
+    stale   → show what's there, fetch quietly in the background
+    fresh   → show what's there, do nothing
+
+isPending / isFetching
+  → windows into the row's status and fetchStatus fields
+
+staleTime
+  → how long a row is trusted before it's willing to be refetched
+
+invalidateQueries
+  → manually mark a row stale right now, skip the staleTime wait
+```
+
+## The takeaway
+
+`useQuery` isn't a fetching library with a lot of clever tricks bolted on. It's a cache with one consistent rule applied everywhere: check if you have fresh data, and if not, get it — quietly, without ever leaving the user staring at a blank screen for data they've already seen once. Once that single rule clicks, every other piece — `staleTime`, `isFetching`, `invalidateQueries`, background refetching — stops looking like separate features and starts looking like the same idea, applied consistently. That consistency is the actual reason it replaces so much manual `useEffect` code with so little of your own.
