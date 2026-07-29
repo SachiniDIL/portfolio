@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { site } from "@/lib/site";
 
 const links = [
-  { label: "About", href: "#about" },
-  { label: "Experience", href: "#experience" },
-  { label: "Work", href: "#work" },
-  { label: "Arsenal", href: "#stack" },
-  { label: "Contact", href: "#contact" },
+  { label: "About", href: "/#about" },
+  { label: "Experience", href: "/#experience" },
+  { label: "Work", href: "/#work" },
+  { label: "Blog", href: "/blog" },
+  { label: "Arsenal", href: "/#stack" },
+  { label: "Contact", href: "/#contact" },
 ];
 
 export default function Header() {
@@ -70,22 +72,22 @@ export default function Header() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-sm">
       <div className="flex h-14 items-center justify-between px-[6vw]">
-        <a
-          href="#"
+        <Link
+          href="/"
           className="display text-[20px] tracking-[0.04em] text-paper transition-colors duration-200 hover:text-crimson"
         >
           Sachini Dilrangi<span className="text-crimson">.</span>
-        </a>
+        </Link>
         <div className="hidden items-center gap-7 md:flex">
           <nav aria-label="Primary" className="flex items-center gap-7">
             {links.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted transition-colors duration-200 hover:text-crimson"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <a
@@ -127,19 +129,22 @@ export default function Header() {
               Close
             </button>
           </div>
-          <nav aria-label="Mobile" className="flex flex-1 flex-col justify-center gap-1 px-[6vw]">
+          <nav
+            aria-label="Mobile"
+            className="flex flex-1 flex-col justify-center gap-1 overflow-y-auto px-[6vw] py-8"
+          >
             {links.map((link, i) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 onClick={close}
                 className="group flex items-baseline gap-4 py-2"
               >
                 <span className="font-mono text-xs text-crimson">0{i + 1}</span>
-                <span className="display text-[clamp(34px,9vw,56px)] leading-none text-paper transition-colors duration-200 group-hover:text-crimson">
+                <span className="display text-[clamp(30px,8vw,52px)] leading-none text-paper transition-colors duration-200 group-hover:text-crimson">
                   {link.label}
                 </span>
-              </a>
+              </Link>
             ))}
             <a
               href={site.cvPath}

@@ -125,4 +125,41 @@ body {
       transition: none;
     }
   }
+
+  /* rehype-highlight token colors for MDX code blocks */
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal,
+  .hljs-tag {
+    color: var(--crimson);
+  }
+
+  .hljs-string,
+  .hljs-attr,
+  .hljs-attribute,
+  .hljs-symbol,
+  .hljs-bullet {
+    color: var(--gold);
+  }
+
+  .hljs-comment,
+  .hljs-quote,
+  .hljs-deletion {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .hljs-title,
+  .hljs-name,
+  .hljs-section,
+  .hljs-type {
+    color: var(--paper);
+    font-weight: 600;
+  }
+
+  .hljs-number,
+  .hljs-built_in,
+  .hljs-variable {
+    color: var(--body);
+  }
 }

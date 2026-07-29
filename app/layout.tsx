@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import { site } from "@/lib/site";
+import Header from "@/components/Header";
 import "./globals.css";
 
 const bebas = Bebas_Neue({
@@ -63,6 +64,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        <Header />
         {children}
       </body>
     </html>
