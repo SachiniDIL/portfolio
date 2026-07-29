@@ -42,12 +42,12 @@ export default async function BlogIndexPage() {
           Nothing published yet — check back soon.
         </p>
       ) : (
-        <div className="mt-16 grid grid-cols-1 gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((post) => (
             <Link
               key={post.slug}
               href={`/blog/${post.slug}`}
-              className="group flex flex-col bg-bg transition-colors duration-300 hover:bg-bg2"
+              className="group -ml-px -mt-px flex flex-col border border-line bg-bg transition-colors duration-300 hover:bg-bg2"
             >
               <div className="relative aspect-[1.91/1] w-full overflow-hidden border-b border-line">
                 <Image
