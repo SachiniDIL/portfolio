@@ -98,7 +98,11 @@ export function MDXContent({ source }: { source: string }) {
           rehypePlugins: [
             rehypeSlug,
             [rehypeAutolinkHeadings, { behavior: "wrap" }],
-            rehypeHighlight,
+            // detect: true — otherwise fenced blocks with no language tag
+            // (```` ``` ````) get skipped entirely, which breaks the inline-
+            // vs-block heuristic in the `code` component below (it keys off
+            // whether rehype-highlight added a className at all).
+            [rehypeHighlight, { detect: true }],
           ],
         },
       }}

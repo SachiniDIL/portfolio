@@ -67,27 +67,51 @@ async function main() {
 
   console.log(`Publishing "${frontmatter.title}" as /blog/${slug} ...`);
 
-  // --- Cover image: copy into public/blog, read real dimensions ---
-  const coverImagePath = path.resolve(postDir, frontmatter.coverImage);
-  let imageBuffer: Buffer;
-  try {
-    imageBuffer = await readFile(coverImagePath);
-  } catch {
-    fail(`Could not read cover image at ${coverImagePath}.`);
-  }
-  const { width, height } = imageSize(imageBuffer);
-  const ext = path.extname(coverImagePath) || ".jpg";
-  const destDir = path.resolve(process.cwd(), "public", "blog");
-  await mkdir(destDir, { recursive: true });
-  const destFile = `${slug}${ext}`;
-  await writeFile(path.join(destDir, destFile), imageBuffer);
+  // --- Cover image ---
+  // Either a root-relative path already sitting in public/ (e.g. "/blog/1.png"
+  // placed there by hand — used as-is, not moved or renamed), or a source
+  // file next to index.mdx (e.g. "./cover.jpg" — copied into public/blog/).
+  let coverImage: { url: string; alt: string; width: number; height: number };
+  let publicImageNote: string;
 
-  const coverImage = {
-    url: `/blog/${destFile}`,
-    alt: frontmatter.coverImageAlt ?? frontmatter.title,
-    width,
-    height,
-  };
+  if (frontmatter.coverImage.startsWith("/")) {
+    const publicPath = path.resolve(process.cwd(), "public", frontmatter.coverImage.replace(/^\//, ""));
+    let imageBuffer: Buffer;
+    try {
+      imageBuffer = await readFile(publicPath);
+    } catch {
+      fail(`coverImage is "${frontmatter.coverImage}" but no file exists at ${publicPath}.`);
+    }
+    const { width, height } = imageSize(imageBuffer);
+    coverImage = {
+      url: frontmatter.coverImage,
+      alt: frontmatter.coverImageAlt ?? frontmatter.title,
+      width,
+      height,
+    };
+    publicImageNote = frontmatter.coverImage;
+  } else {
+    const coverImagePath = path.resolve(postDir, frontmatter.coverImage);
+    let imageBuffer: Buffer;
+    try {
+      imageBuffer = await readFile(coverImagePath);
+    } catch {
+      fail(`Could not read cover image at ${coverImagePath}.`);
+    }
+    const { width, height } = imageSize(imageBuffer);
+    const ext = path.extname(coverImagePath) || ".jpg";
+    const destDir = path.resolve(process.cwd(), "public", "blog");
+    await mkdir(destDir, { recursive: true });
+    const destFile = `${slug}${ext}`;
+    await writeFile(path.join(destDir, destFile), imageBuffer);
+    coverImage = {
+      url: `/blog/${destFile}`,
+      alt: frontmatter.coverImageAlt ?? frontmatter.title,
+      width,
+      height,
+    };
+    publicImageNote = `/blog/${destFile}`;
+  }
 
   // --- Derived fields ---
   const stats = readingTime(content);
@@ -149,7 +173,7 @@ async function main() {
   }
 
   console.log(
-    `ℹ The cover image was written to public/blog/${destFile}. Commit and push it — the post text updates live via Mongo, but the image is a static file and only appears once it's deployed.`
+    `ℹ The cover image lives at public${publicImageNote}. Commit and push it if it isn't already — the post text updates live via Mongo, but the image is a static file and only appears once it's deployed.`
   );
 }
 

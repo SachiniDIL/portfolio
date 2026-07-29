@@ -1,0 +1,204 @@
+---
+title: "Why I Stopped Using useEffect for Data Fetching"
+excerpt: "Five real problems with useEffect-based data fetching — no caching, duplicate requests, race conditions — and how TanStack Query solves each one."
+coverImage: "/blog/1.png"
+coverImageAlt: "A tangled mass of red wires resolving into an ordered gold circuit grid"
+tags: ["react", "tanstack-query", "data-fetching"]
+draft: false
+---
+
+For a long time, this was my go-to pattern for fetching data in React:
+
+```tsx
+"use client";
+import { useEffect, useState } from "react";
+
+export default function PostsPage() {
+  const [posts, setPosts] = useState([]);
+
+  useEffect(() => {
+    async function loadPosts() {
+      const response = await fetch("/api/posts");
+      const data = await response.json();
+      setPosts(data);
+    }
+    loadPosts();
+  }, []);
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+It works. It's simple. It's also hiding about five problems you won't notice until your app is in front of real users.
+
+Here's what changed my mind, one issue at a time.
+
+## Problem 1: You're building loading and error states from scratch, every time
+
+The snippet above doesn't even show a loading spinner. To do it properly, you need this:
+
+```tsx
+const [posts, setPosts] = useState([]);
+const [isLoading, setIsLoading] = useState(false);
+const [error, setError] = useState(null);
+
+useEffect(() => {
+  async function loadPosts() {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/posts");
+      const data = await response.json();
+      setPosts(data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  loadPosts();
+}, []);
+```
+
+Three `useState` calls, just to track three things every data-fetching component needs. Now multiply that by every component in your app that fetches something. You're writing the same boilerplate over and over, and every copy is a chance to forget the `finally` block, or mishandle the error case slightly differently than the last one.
+
+## Problem 2: There's no cache. None.
+
+This is the one that surprised me most. Watch what happens with the plain `useEffect` pattern:
+
+```
+User visits /posts       → fetch fires → data loads
+User clicks into a post  → PostsPage unmounts
+User clicks back         → PostsPage mounts AGAIN → fetch fires AGAIN
+```
+
+Every single visit re-fetches from scratch. There's no memory of "I already have this data and it's still fine." If a user bounces between two pages ten times in two minutes, that's ten identical network requests for data that almost certainly hasn't changed.
+
+Compare that to **TanStack Query** — a library built specifically to manage server data in your UI:
+
+```tsx
+const { data, isPending, isError } = useQuery({
+  queryKey: ["posts"],
+  queryFn: getPosts,
+});
+```
+
+The `queryKey` — `["posts"]` — is a cache identifier. The first time this runs, it fetches and stores the result under that key. The second time any component asks for `["posts"]`, TanStack Query checks: is this still fresh? If yes, it just hands back what's already there. No network call. No spinner. Instant.
+
+You control "still fresh" with one option:
+
+```tsx
+new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 60 * 1000 }, // fresh for 60 seconds
+  },
+});
+```
+
+Now navigating back to a page within 60 seconds costs nothing. After 60 seconds, the data is considered *stale* — but even then, it doesn't just start re-fetching on its own. It waits for a real trigger: the component re-mounting, the browser window regaining focus, or you explicitly asking for a refresh. Stale data still displays instantly while a background refetch quietly happens behind it — no spinner, no flicker, just an update once the fresh data arrives.
+
+## Problem 3: Duplicate requests, silently
+
+Imagine three components on the same page each fetching the same thing:
+
+```tsx
+// Component A
+useEffect(() => { fetch("/api/posts") }, []);
+
+// Component B
+useEffect(() => { fetch("/api/posts") }, []);
+
+// Component C
+useEffect(() => { fetch("/api/posts") }, []);
+```
+
+Three identical network requests, fired at the same time, for the exact same data. Nothing in this pattern knows the other two exist.
+
+With `useQuery`, if three components all call:
+
+```tsx
+useQuery({ queryKey: ["posts"], queryFn: getPosts })
+```
+
+...only **one** request fires. TanStack Query recognizes the identical `queryKey` and shares one fetch across all three. Deduplication is automatic — you don't write anything to get it.
+
+## Problem 4: The race condition bug
+
+This one's subtle, and it's a genuine bug I've shipped before without realizing it.
+
+```tsx
+useEffect(() => {
+  fetch(`/api/posts?page=${page}`)
+    .then((r) => r.json())
+    .then((data) => setPosts(data));
+}, [page]);
+```
+
+Say a user clicks "next page" twice, quickly. Two requests fire — one for page 2, one for page 3. Network conditions are unpredictable: what if the page-2 request is slower and arrives *after* the page-3 request? You'd end up displaying page 2's data while the URL and UI think you're on page 3. Silent, hard-to-reproduce, and annoying to debug because it only shows up under specific timing conditions.
+
+TanStack Query handles this internally — it's aware of which request is the most recent for a given `queryKey` and discards stale in-flight responses automatically. You don't have to think about it.
+
+## Problem 5: No good story for creating/updating data
+
+The `useEffect` pattern is built for reading data. The moment you need to create a post and have the list update, you're on your own:
+
+```tsx
+async function handleAddPost(newPost) {
+  await fetch("/api/posts", { method: "POST", body: JSON.stringify(newPost) });
+  // now what? Manually re-fetch? Manually push into state?
+  const response = await fetch("/api/posts");
+  const data = await response.json();
+  setPosts(data);
+}
+```
+
+TanStack Query has a dedicated tool for this — `useMutation` — paired with `invalidateQueries`:
+
+```tsx
+const queryClient = useQueryClient();
+
+const mutation = useMutation({
+  mutationFn: createPost,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["posts"] });
+  },
+});
+```
+
+`invalidateQueries` tells TanStack Query "the `["posts"]` cache is now out of date." It immediately triggers a refetch, and any component displaying that data updates automatically — no manual re-fetching, no manually splicing new data into old state.
+
+## The side-by-side
+
+| | `useEffect` + `useState` | `useQuery` / `useMutation` |
+|---|---|---|
+| Loading state | Manual, per component | `isPending` built in |
+| Error state | Manual, per component | `isError` + `error` built in |
+| Caching | None — every mount refetches | Automatic, keyed by `queryKey` |
+| Request deduplication | None | Automatic |
+| Background refetching | None | Automatic on refocus/reconnect |
+| Race condition safety | Manual, easy to miss | Built in |
+| Refresh after a mutation | Manual re-fetch logic | `invalidateQueries` |
+
+## So when is `useEffect` still fine?
+
+Not every fetch needs a data-fetching library. If you're firing something **once, on demand, in response to a user action** — not something driving your UI's ongoing state — a plain `fetch` inside an event handler works fine:
+
+```tsx
+async function handleExportClick() {
+  const csv = await fetch("/api/export").then((r) => r.text());
+  downloadFile(csv);
+}
+```
+
+That's not the pattern I'm describing above — there's no `useEffect`, no ongoing state to keep in sync, no cache to manage. It's a one-off action, and it stays simple on purpose.
+
+## The actual lesson
+
+`useEffect` + `useState` isn't wrong, exactly — it's what you write when a proper data-fetching layer doesn't exist yet. Every problem above is really the same problem wearing different clothes: **fetching data is stateful, and manually managing that state everywhere it happens is expensive and error-prone.**
+
+TanStack Query didn't teach me a new way to fetch data. It taught me that the fetching itself was never the hard part — the caching, deduplication, and state synchronization around it always were. Once a library handles that correctly, `useEffect` for data fetching starts to look like reinventing a wheel that was never worth reinventing in the first place.
