@@ -1,0 +1,181 @@
+---
+title: "Server Components vs Client Components: The Mental Model Nobody Explains Properly"
+slug: "server-vs-client-components-mental-model"
+excerpt: "The real rule behind Next.js's Server/Client boundary: it propagates through import statements, not JSX nesting — which is why a root layout can wrap the whole app in a provider without going fully client-side."
+coverImage: "/blog/3.png"
+coverImageAlt: "Tangled red wires converging into a knot at a glowing gold gateway shaped like the Next.js logo, with a single clean gold thread passing straight through it"
+tags: ["react", "nextjs", "server-components"]
+draft: false
+---
+
+Every Next.js App Router tutorial tells you the same thing: components are Server Components by default, and you add `'use client'` at the top of a file to make it a Client Component. Fine so far. Then almost every tutorial shows you something like this:
+
+```tsx
+// app/layout.tsx — no 'use client' here
+import { Providers } from "./providers";
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+```tsx
+// app/providers.tsx
+"use client";
+import { QueryClientProvider } from "@tanstack/react-query";
+
+export function Providers({ children }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+```
+
+And then moves on, as if nothing strange just happened.
+
+Something strange did just happen. `Providers` is a Client Component. It wraps `{children}` — which is every single page in your entire app. So why doesn't every page in your app become a Client Component too?
+
+This is the one question that actually explains how the Server/Client boundary works — and almost nobody answers it directly.
+
+## The wrong mental model everyone starts with
+
+Most people's first guess, understandably, is something like:
+
+> "`'use client'` makes this component client-side. Whatever this component renders is also client-side, because it's nested inside."
+
+Under that model, `{children}` — being visually nested inside `<QueryClientProvider>` — should become part of the client bundle. But it doesn't. If it did, you could never put a context provider (auth, theme, query client, anything) near the root of a Next.js app without turning your entire application into one giant client-rendered blob — which would defeat almost the entire point of Server Components existing.
+
+So the "nesting" model is wrong. Here's the model that's actually correct.
+
+## The real rule: it's about imports, not visual nesting
+
+`'use client'` doesn't mark "everything inside this JSX." It marks **the start of an import boundary.** The rule is:
+
+> If a `'use client'` file imports another module and renders it, that imported module becomes part of the client bundle too — regardless of what it contains.
+>
+> If a component arrives as a **prop** (including `children`) rather than an import, it keeps whatever nature it already had. Passing it as a prop does not change it.
+
+That's the entire rule. Let's watch it apply, line by line, to the example above.
+
+```tsx
+// app/providers.tsx
+"use client";
+
+import { QueryClientProvider } from "@tanstack/react-query"; // ← imported
+import { useState } from "react";                              // ← imported
+
+export function Providers({ children }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+```
+
+Look at what this file actually imports: `QueryClientProvider` from a library, and `useState` from React. That's it. It does **not** import `HomePage`, `PostsPage`, or any component from your app. `children` isn't sitting in an `import` statement anywhere in this file — it arrives as a function parameter, handed to `Providers` by whoever calls it.
+
+```tsx
+// app/layout.tsx
+import { Providers } from "./providers"; // ← Providers IS imported here
+
+export default function RootLayout({ children }) {
+  return <Providers>{children}</Providers>;
+}
+```
+
+`RootLayout` imports `Providers` — so `Providers` becomes client code. But `RootLayout` itself has no `'use client'`, and it doesn't import any of your pages either. `children`, from `RootLayout`'s perspective, is also just a parameter — Next.js hands it whatever page the user is currently visiting, already rendered.
+
+So trace the actual chain of custody for a page like `PostsPage`:
+
+```
+PostsPage exists as a Server Component (default, no directive)
+        ↓
+Next.js's routing determines PostsPage should render for this URL
+        ↓
+Next.js passes the already-rendered PostsPage output as {children}
+        ↓
+RootLayout receives {children} as a parameter, renders <Providers>{children}</Providers>
+        ↓
+Providers receives {children} as a parameter — never imports it, never sees its source
+        ↓
+Providers places {children} inside <QueryClientProvider>
+```
+
+At no point does `Providers` — the file with `'use client'` — reach out and `import` `PostsPage`. It just receives a slot to fill, already resolved. That's the loophole, and it's not an accident — it's a deliberate design decision in how React and Next.js pass `children` around.
+
+## A visual way to hold this in your head
+
+```
+                    IMPORT                              PROP / CHILDREN
+            ─────────────────────                 ─────────────────────
+            file A has 'use client'                file A has 'use client'
+                    ↓                                        ↓
+            import { B } from './b'                receives {children} as
+                    ↓                                a function parameter
+            renders <B />                                    ↓
+                    ↓                                renders {children}
+            B becomes client code too                        ↓
+            (even if B has no                        children keeps its
+             'use client' of its own)                 OWN nature — untouched
+```
+
+The distinguishing question, every single time, is simple: **did this file write an `import` statement for the thing it's rendering, or did the thing arrive as a prop from outside?**
+
+## Watching the same rule apply one level deeper
+
+This isn't a one-time exception at the root layout — it's the same rule, every time, at every level of your component tree. Take a Client Component like a post list:
+
+```tsx
+// components/post-list.tsx
+"use client";
+
+import { useQuery } from "@tanstack/react-query"; // ← imported
+import { PostCard } from "./post-card";             // ← imported
+
+export function PostList() {
+  const { data } = useQuery({ queryKey: ["posts"], queryFn: getPosts });
+  return (
+    <ul>
+      {data?.map((post) => <PostCard key={post.id} post={post} />)}
+    </ul>
+  );
+}
+```
+
+Here, `PostCard` **is** imported directly inside a `'use client'` file — so `PostCard` becomes part of the client bundle too, even though `post-list.tsx` never explicitly writes `'use client'` inside `PostCard`'s own file. The import is what does it, not the file's own header.
+
+Compare that to a sibling arrangement instead:
+
+```tsx
+// app/posts/page.tsx — Server Component
+import { PostList } from "@/components/post-list";
+import { PageHeader } from "@/components/page-header"; // never touches useQuery
+
+export default function PostsPage() {
+  return (
+    <>
+      <PageHeader title="Blog" />   {/* rendered as a SIBLING, not imported by PostList */}
+      <PostList />
+    </>
+  );
+}
+```
+
+`PageHeader` is imported by `PostsPage` — a Server Component — and rendered as a sibling next to `PostList`, not swallowed inside it. `PageHeader` stays a Server Component, renders on the server, ships zero JavaScript. It never crosses paths with `PostList`'s import chain at all.
+
+This is the actual performance lever underneath the common advice "push `'use client'` as low as possible." It's not a vague best practice — it's a direct consequence of the import rule. Every component a client file imports gets dragged along into the browser bundle. Every component a *server* file imports and renders as a sibling stays server-side, free of charge.
+
+## The one-sentence version
+
+`'use client'` propagates through **import statements**, not through **JSX nesting**. Something rendered via `{children}` or another prop keeps its own nature; something pulled in via `import` inherits the nature of the file that imported it.
+
+## Why this matters more than it seems
+
+Once this clicks, a few things that used to seem like magic stop being magic:
+
+- **Why root layouts can safely wrap the whole app in a context provider** without turning everything client-side — the pages arrive as `children`, not imports.
+- **Why "push `'use client'` down" is real, measurable advice** — every import inside a client file is JavaScript your user's browser has to download and run, whether or not it needed to be interactive.
+- **Why a component can be "client" in one place and effectively invisible to the client bundle in another** — depending entirely on whether it arrived by import or by prop at that particular spot in the tree.
+
+The Server/Client boundary isn't really about where a component is drawn on the page. It's about how the JavaScript that produced it got there — imported, and therefore bundled and shipped; or handed down as an already-finished result, and therefore left exactly where it was born.
