@@ -47,7 +47,7 @@ export async function getAllPosts(): Promise<Post[]> {
       collection.find({ draft: false }).sort({ publishedAt: -1 }).toArray(),
     ]);
     console.log(
-      `[blog] getAllPosts: db="${db.databaseName}" mongodbDbEnvRaw=${JSON.stringify(process.env.MONGODB_DB)} totalDocsInCollection=${totalCount} nonDraftReturned=${docs.length}`
+      `[blog] getAllPosts (v2, after removing MONGODB_DB): db="${db.databaseName}" totalDocsInCollection=${totalCount} nonDraftReturned=${docs.length}`
     );
     return docs.map(serialize);
   } catch (err) {
