@@ -1,0 +1,169 @@
+---
+title: "Why Does My Server Component Need an Absolute URL?"
+slug: "why-server-component-needs-absolute-url"
+excerpt: "Why fetch('/api/posts') works in a Client Component but throws in a Server Component — and why the failure can hide silently inside prefetchQuery instead of erroring loudly."
+coverImage: "/blog/4.png"
+coverImageAlt: "A complete, glowing gold compass on the left beside a broken, incomplete red ring missing pieces on the right"
+tags: ["react", "nextjs", "server-components"]
+draft: false
+---
+
+At some point, almost everyone building with Next.js App Router hits this error:
+
+```
+TypeError: Failed to parse URL from /api/posts
+```
+
+The confusing part is that the exact same line of code works perfectly fine somewhere else in the same app:
+
+```tsx
+// works fine in a Client Component
+const res = await fetch("/api/posts");
+```
+
+```tsx
+// throws, in a Server Component
+const res = await fetch("/api/posts");
+```
+
+Same `fetch`. Same relative path. Same framework. One works, one crashes. The reason comes down to something that has nothing to do with Next.js at all — it's about what `fetch` actually needs, and who's providing it.
+
+## The part of the picture that's usually left out
+
+A relative URL like `/api/posts` isn't a complete address. It's missing the protocol, the domain, and the port. Something has to fill those in before the request can actually be sent anywhere. In the browser, something always does that automatically. On the server, nothing does — unless you tell it to.
+
+## In the browser, there's always a "current page" to resolve against
+
+Every browser tab is, at all times, sitting on some URL. Open your dev tools right now and type `window.location.href` — you'll get something like `https://myapp.com/posts`. The browser already knows the protocol (`https`), the domain (`myapp.com`), and effectively the port.
+
+So when your code says:
+
+```tsx
+fetch("/api/posts")
+```
+
+the browser silently does this translation before sending anything over the network:
+
+```
+current page:     https://myapp.com/posts
+relative path:     /api/posts
+                        ↓
+resolved to:       https://myapp.com/api/posts
+```
+
+This isn't a `fetch`-specific trick — it's the same mechanism that makes `<a href="/about">` work, or `<img src="/logo.png">`. Every relative URL in a browser gets resolved against whatever page is currently loaded. It's baked into how browsers work, and it happens automatically, every time, without you thinking about it.
+
+## On the server, there is no "current page"
+
+A Server Component doesn't run in a browser. It runs in Node.js — a JavaScript runtime with no concept of tabs, no address bar, no "currently loaded page." When you write:
+
+```tsx
+// app/posts/page.tsx — a Server Component
+export default async function PostsPage() {
+  const res = await fetch("/api/posts"); // ❌
+}
+```
+
+Node.js executes that `fetch` call directly, during rendering, on the server. It looks at `/api/posts` and has genuinely nothing to resolve it against. There's no `window.location` in Node.js — that object doesn't exist there at all. So `fetch` just fails outright:
+
+```
+TypeError: Failed to parse URL from /api/posts
+```
+
+It's not a bug, and it's not Next.js being difficult. It's `fetch` correctly refusing to guess at an address it has no way of completing.
+
+## The fix: give the server a complete address
+
+The Server Component needs the same three pieces the browser was silently filling in — protocol, domain, and port — spelled out explicitly:
+
+```tsx
+const res = await fetch("http://localhost:3000/api/posts"); // ✅ complete address
+```
+
+That works, but hardcoding `localhost:3000` breaks the moment this code runs anywhere other than your local machine — which, if you're deploying to Vercel, is basically all the time. You need something that adapts to wherever the code is actually running.
+
+## A small helper that handles both environments
+
+```ts
+// lib/get-base-url.ts
+export function getBaseUrl(): string {
+  // Are we in the browser? `window` only exists there.
+  if (typeof window !== "undefined") {
+    return ""; // empty string keeps the URL relative — browser resolves it
+  }
+
+  // Are we on Vercel? This env var is set automatically on every deployment.
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // Otherwise, we're on the server locally, in dev.
+  return `http://localhost:${process.env.PORT ?? 3000}`;
+}
+```
+
+And then every fetch call uses it, everywhere, unconditionally:
+
+```ts
+export async function getPosts() {
+  const res = await fetch(`${getBaseUrl()}/api/posts`);
+  return res.json();
+}
+```
+
+Trace what this actually produces in each situation:
+
+```
+Called from a Client Component, in the browser:
+  getBaseUrl() → ""
+  final URL   → "" + "/api/posts" → "/api/posts"
+  → relative, browser resolves it against the current page ✅
+
+Called from a Server Component, running locally:
+  getBaseUrl() → "http://localhost:3000"
+  final URL   → "http://localhost:3000/api/posts"
+  → complete address, Node.js can send it ✅
+
+Called from a Server Component, deployed on Vercel:
+  getBaseUrl() → "https://my-app.vercel.app"
+  final URL   → "https://my-app.vercel.app/api/posts"
+  → complete address, Node.js can send it ✅
+```
+
+One function, three environments, the same `fetch` call working correctly in every one of them.
+
+## Why this bug is worse than it looks — it fails silently
+
+Here's the part that makes this genuinely worth understanding rather than just patching over. If you're using this fetch function inside `prefetchQuery` — the pattern that pre-warms a TanStack Query cache on the server before sending HTML to the browser — a broken URL doesn't throw a visible error in your terminal or crash the page. `prefetchQuery` is explicitly designed to swallow errors, because a failed prefetch isn't supposed to be fatal — the idea is "if the server-side prefetch fails, the client will just fetch it on its own instead."
+
+So what actually happens is this:
+
+```
+prefetchQuery calls getPosts()
+        ↓
+fetch throws "Failed to parse URL"
+        ↓
+prefetchQuery catches it internally, silently
+        ↓
+the cache stays empty — nothing was ever stored
+        ↓
+dehydrate() freezes an empty cache into JSON
+        ↓
+HydrationBoundary restores... nothing
+        ↓
+useQuery on the client finds an empty cache
+        ↓
+fires its own fetch, shows a loading spinner
+```
+
+Your app still works. Nothing crashes. Nothing appears in the console. You just quietly lose the entire benefit of server-side prefetching — the whole reason you were avoiding a loading spinner on first load in the first place — and there's no error message pointing you back to the cause. You'd only notice by watching the network tab and wondering why the "instant" page suddenly isn't instant anymore.
+
+## The one-sentence version
+
+A relative URL isn't an address — it's an instruction for how to *complete* an address, and only an environment that already knows where it currently is (a browser, sitting on some page) can carry out that instruction automatically. A Server Component running in Node.js has no "current page" to complete it with, so it needs the full address handed to it directly.
+
+## The broader lesson underneath this specific bug
+
+This isn't really a `fetch` quirk, or a Next.js quirk. It's the same underlying idea that shows up constantly once you're working across the server/browser boundary: **code that looks identical can behave completely differently depending on which environment actually executes it.** The browser and Node.js are both "just JavaScript," but they come with a completely different set of built-in assumptions about the world around them — one of which happens to be "do I know what page I'm currently on?"
+
+Once you start asking that question — *where does this code actually run, and what does that environment assume it already knows?* — a whole category of "it works here but not there" bugs stops being mysterious.
