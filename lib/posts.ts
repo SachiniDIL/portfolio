@@ -41,11 +41,14 @@ function serialize(doc: PostDocument): Post {
 export async function getAllPosts(): Promise<Post[]> {
   try {
     const db = await getDb();
-    const docs = await db
-      .collection<PostDocument>(COLLECTION)
-      .find({ draft: false })
-      .sort({ publishedAt: -1 })
-      .toArray();
+    const collection = db.collection<PostDocument>(COLLECTION);
+    const [totalCount, docs] = await Promise.all([
+      collection.countDocuments({}),
+      collection.find({ draft: false }).sort({ publishedAt: -1 }).toArray(),
+    ]);
+    console.log(
+      `[blog] getAllPosts: db="${db.databaseName}" totalDocsInCollection=${totalCount} nonDraftReturned=${docs.length}`
+    );
     return docs.map(serialize);
   } catch (err) {
     console.warn("[blog] getAllPosts failed:", (err as Error).message);
