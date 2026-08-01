@@ -1,0 +1,128 @@
+---
+title: "Does the src Folder Actually Matter in Next.js?"
+slug: "does-the-src-folder-actually-matter-in-nextjs"
+date: "2026-08-01"
+excerpt: "You clicked through a setup prompt without reading it. Here's what you actually chose, and whether it matters."
+coverImage: "/blog/5.png"
+coverImageAlt: "Two matching stone archways in a dark room — one open and glowing gold with light spilling across the floor, the other closed and dark"
+tags: ["nextjs", "app-router", "project-structure"]
+draft: false
+---
+
+You run `create-next-app`, and it asks:
+
+```
+Would you like your code inside a `src/` directory? › No / Yes
+```
+
+Most people hit Enter on whatever the default is and move on. I did too, the first few times. Then I inherited a project where someone had copied route files from a tutorial repo straight into the wrong folder, and nothing rendered. No error. No red squiggly line. Just a blank page where a route should have been.
+
+That sent me down a rabbit hole that ended with a question I should have asked before ever running the CLI: what is this folder actually doing, and does it change how my app behaves?
+
+## The real question
+
+Next.js's App Router supports two valid locations for your routes:
+
+```
+/app/...
+```
+
+or
+
+```
+/src/app/...
+```
+
+Is one of these "correct"? Does performance differ? Does routing behave differently? Short answer: no, no, and no. But the *why* is worth understanding, because it explains why that blank-page bug happened.
+
+## How Next.js actually finds your routes
+
+Next.js doesn't care where your config files live. It cares about one thing: where is `app/`. At startup, it checks two spots, in order:
+
+```
+Start build
+      ↓
+Look for /src/app
+      ↓
+   Found? ──Yes──→ Use /src/app as route root
+      │
+      No
+      ↓
+Look for /app
+      ↓
+   Found? ──Yes──→ Use /app as route root
+      │
+      No
+      ↓
+   Error: no app directory found
+```
+
+That's the entire decision tree. Whichever one exists first in that check order wins. This is also exactly how my blank-page bug happened — the project used `src/app`, but the copied files landed in a stray root-level `app/` folder that got created by accident. Next.js picked up `src/app` as usual, silently ignored the root `app/`, and the new routes just... didn't exist anywhere Next.js was looking.
+
+```tsx
+// src/app/dashboard/page.tsx  ← Next.js reads this
+export default function Dashboard() {
+  return <h1>Dashboard</h1>;
+}
+
+// app/dashboard/page.tsx  ← Next.js never sees this
+// (created by accident, silently ignored)
+export default function Dashboard() {
+  return <h1>This route does not exist as far as Next.js is concerned</h1>;
+}
+```
+
+No warning is thrown for the ignored folder in most setups. That's the trap: it's not that `src/app` is fragile, it's that having *both* present at once creates a folder that looks like it should work and doesn't.
+
+## What actually differs between the two
+
+Here's the part that surprises people: nothing about routing, rendering, or build behavior changes based on which one you pick.
+
+| | `/app` | `/src/app` |
+|---|---|---|
+| Routing conventions (`page.tsx`, `layout.tsx`, `route.ts`) | Identical | Identical |
+| Build output | Identical | Identical |
+| Performance | Identical | Identical |
+| Where root-level config files live | Same level as `app/` | Separate from `src/` |
+| Where your other code lives | Usually scattered at root (`components/`, `lib/`) | Usually nested under `src/` too |
+
+The only thing that actually changes is **visual separation** between your source code and your tooling config. Without `src/`, your `app/` folder sits in the same directory as this:
+
+```
+.eslintrc.json
+next.config.js
+tailwind.config.ts
+postcss.config.js
+tsconfig.json
+.env.local
+app/
+```
+
+With `src/`, that becomes:
+
+```
+.eslintrc.json
+next.config.js
+tailwind.config.ts
+postcss.config.js
+tsconfig.json
+.env.local
+src/
+  app/
+  components/
+  lib/
+```
+
+Everything you actually write lives under one folder. Everything that configures the project stays at the root. That's the whole trade.
+
+## So which one should you pick
+
+For a weekend project or a quick prototype, `/app` is fine. One less folder to type through, and the project is small enough that root-level clutter isn't really clutter yet.
+
+Once a project accumulates a handful of config files, a growing `lib/` of utilities, environment-specific setups, and shared types, `src/app` earns its keep. It's not a technical requirement — it's a "future you, scrolling through the file tree, will be less annoyed" decision.
+
+Pick one at the start of a project and stay there. The actual risk isn't choosing wrong — it's ending up with both, like my tutorial-copy incident, where Next.js quietly resolves the ambiguity for you and you have no idea it happened.
+
+**The actual rule: Next.js checks `src/app` first, falls back to `app`, and uses whichever it finds — so the only real mistake is having both.**
+
+This is a small example of a pattern that shows up constantly in frameworks: convention-based resolution feels like magic right up until two conventions are satisfied at once, and then it becomes a silent priority order you were never told to memorize. The fix is never to distrust the convention — it's to know, precisely, what order it checks in.
