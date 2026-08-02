@@ -12,6 +12,7 @@ const tags = [
   "MongoDB",
   "PostgreSQL",
   "MySQL",
+  "Three.js",
   "Docker",
   "CI/CD",
   "Git",

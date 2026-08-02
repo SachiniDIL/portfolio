@@ -1,4 +1,5 @@
 import HeroGlow from "./HeroGlow";
+import HeroScene from "./HeroScene";
 import Reveal from "./Reveal";
 
 export default function Hero() {
@@ -6,6 +7,7 @@ export default function Hero() {
     <section className="hero-glow relative flex min-h-svh flex-col justify-center overflow-hidden px-[6vw] py-[8vh]">
       <div aria-hidden className="hero-vignette pointer-events-none absolute inset-0" />
       <HeroGlow />
+      <HeroScene />
       <Reveal className="z-[1]">
         <p className="eyebrow-dot flex items-center gap-2.5 font-mono text-[11px] tracking-[0.18em] text-gold sm:text-[13px] sm:tracking-[0.25em]">
           open to software engineering roles · ai-powered products
