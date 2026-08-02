@@ -4,7 +4,62 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useInViewport } from "./useInViewport";
 
-export default function HeroScene() {
+// An abstract wireframe figure built from primitives — not a rigged
+// character model (that needs an actual .glb asset), but a stylized
+// humanoid silhouette in the same wireframe language as the rest of the
+// site's 3D pieces.
+interface Figure {
+  group: THREE.Group;
+  materials: THREE.Material[];
+}
+
+function buildFigure(): Figure {
+  const group = new THREE.Group();
+
+  const bodyMaterial = new THREE.MeshBasicMaterial({
+    color: 0xc8102e,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.55,
+  });
+  const headMaterial = new THREE.MeshBasicMaterial({
+    color: 0xc9a227,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.85,
+  });
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), headMaterial);
+  head.position.set(0, 2.3, 0);
+  group.add(head);
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.3, 4, 8), bodyMaterial);
+  torso.position.set(0, 1.3, 0);
+  group.add(torso);
+
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 1.0, 4, 6), bodyMaterial);
+  leftArm.position.set(-0.62, 1.35, 0);
+  leftArm.rotation.z = 0.32;
+  group.add(leftArm);
+
+  const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 1.0, 4, 6), bodyMaterial);
+  rightArm.position.set(0.62, 1.35, 0);
+  rightArm.rotation.z = -0.32;
+  group.add(rightArm);
+
+  const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 1.2, 4, 6), bodyMaterial);
+  leftLeg.position.set(-0.24, 0.05, 0);
+  group.add(leftLeg);
+
+  const rightLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 1.2, 4, 6), bodyMaterial);
+  rightLeg.position.set(0.24, 0.05, 0);
+  group.add(rightLeg);
+
+  group.position.y = -1.3;
+  return { group, materials: [bodyMaterial, headMaterial] };
+}
+
+export default function AboutFigure() {
   const containerRef = useRef<HTMLDivElement>(null);
   const inView = useInViewport(containerRef);
 
@@ -27,40 +82,19 @@ export default function HeroScene() {
     }
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.z = 6;
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    camera.position.z = 6.5;
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     container.appendChild(renderer.domElement);
 
-    // Crimson outer shell, gold inner core — the same "structure resolving
-    // out of complexity" motif used throughout the blog cover art.
-    const outerGeometry = new THREE.IcosahedronGeometry(2.1, 0);
-    const outerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc8102e,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.5,
-    });
-    const outer = new THREE.Mesh(outerGeometry, outerMaterial);
-    scene.add(outer);
-
-    const innerGeometry = new THREE.OctahedronGeometry(1.05, 0);
-    const innerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc9a227,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.85,
-    });
-    const inner = new THREE.Mesh(innerGeometry, innerMaterial);
-    scene.add(inner);
+    const { group: figure, materials } = buildFigure();
+    scene.add(figure);
 
     let targetX = 0;
-    let targetY = 0;
     const onMouseMove = (e: MouseEvent) => {
       targetX = (e.clientX / window.innerWidth - 0.5) * 2;
-      targetY = (e.clientY / window.innerHeight - 0.5) * 2;
     };
     window.addEventListener("mousemove", onMouseMove);
 
@@ -79,10 +113,8 @@ export default function HeroScene() {
 
       timer.update();
       const t = timer.getElapsed();
-      outer.rotation.y = t * 0.15 + targetX * 0.3;
-      outer.rotation.x = t * 0.08 + targetY * 0.2;
-      inner.rotation.y = -t * 0.3;
-      inner.rotation.x = t * 0.22;
+      figure.rotation.y = Math.sin(t * 0.3) * 0.5 + targetX * 0.25;
+      figure.position.y = -1.3 + Math.sin(t * 0.8) * 0.06;
 
       renderer.render(scene, camera);
     }
@@ -103,10 +135,12 @@ export default function HeroScene() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      outerGeometry.dispose();
-      outerMaterial.dispose();
-      innerGeometry.dispose();
-      innerMaterial.dispose();
+      figure.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+        }
+      });
+      materials.forEach((material) => material.dispose());
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement);
@@ -118,7 +152,7 @@ export default function HeroScene() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="pointer-events-none absolute right-[2vw] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 lg:block xl:right-[5vw] xl:h-[480px] xl:w-[480px]"
+      className="pointer-events-none absolute right-[3vw] top-1/2 z-0 hidden h-[360px] w-[280px] -translate-y-1/2 lg:block"
     />
   );
 }

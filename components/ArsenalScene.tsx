@@ -4,7 +4,16 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useInViewport } from "./useInViewport";
 
-export default function HeroScene() {
+interface Piece {
+  mesh: THREE.Mesh;
+  spinX: number;
+  spinY: number;
+  orbitRadius: number;
+  orbitSpeed: number;
+  orbitOffset: number;
+}
+
+export default function ArsenalScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const inView = useInViewport(containerRef);
 
@@ -27,42 +36,48 @@ export default function HeroScene() {
     }
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
     camera.position.z = 6;
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     container.appendChild(renderer.domElement);
 
-    // Crimson outer shell, gold inner core — the same "structure resolving
-    // out of complexity" motif used throughout the blog cover art.
-    const outerGeometry = new THREE.IcosahedronGeometry(2.1, 0);
-    const outerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc8102e,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.5,
-    });
-    const outer = new THREE.Mesh(outerGeometry, outerMaterial);
-    scene.add(outer);
+    // A loose cluster of small wireframe polyhedra — scattered tools, not a
+    // single dominant shape, kept low-opacity so it reads as background
+    // texture rather than competing with the tag cloud in front of it.
+    const geometries = [
+      new THREE.TetrahedronGeometry(0.55, 0),
+      new THREE.OctahedronGeometry(0.45, 0),
+      new THREE.IcosahedronGeometry(0.5, 0),
+    ];
+    const materials = [
+      new THREE.MeshBasicMaterial({
+        color: 0xc8102e,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.35,
+      }),
+      new THREE.MeshBasicMaterial({
+        color: 0xc9a227,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.4,
+      }),
+    ];
 
-    const innerGeometry = new THREE.OctahedronGeometry(1.05, 0);
-    const innerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc9a227,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.85,
+    const pieces: Piece[] = geometries.map((geometry, i) => {
+      const mesh = new THREE.Mesh(geometry, materials[i % materials.length]);
+      scene.add(mesh);
+      return {
+        mesh,
+        spinX: 0.15 + i * 0.07,
+        spinY: 0.22 - i * 0.05,
+        orbitRadius: 0.9 + i * 0.4,
+        orbitSpeed: 0.12 + i * 0.04,
+        orbitOffset: (i * Math.PI * 2) / geometries.length,
+      };
     });
-    const inner = new THREE.Mesh(innerGeometry, innerMaterial);
-    scene.add(inner);
-
-    let targetX = 0;
-    let targetY = 0;
-    const onMouseMove = (e: MouseEvent) => {
-      targetX = (e.clientX / window.innerWidth - 0.5) * 2;
-      targetY = (e.clientY / window.innerHeight - 0.5) * 2;
-    };
-    window.addEventListener("mousemove", onMouseMove);
 
     let isPageVisible = document.visibilityState === "visible";
     const onVisibilityChange = () => {
@@ -79,10 +94,13 @@ export default function HeroScene() {
 
       timer.update();
       const t = timer.getElapsed();
-      outer.rotation.y = t * 0.15 + targetX * 0.3;
-      outer.rotation.x = t * 0.08 + targetY * 0.2;
-      inner.rotation.y = -t * 0.3;
-      inner.rotation.x = t * 0.22;
+      for (const p of pieces) {
+        p.mesh.rotation.x = t * p.spinX;
+        p.mesh.rotation.y = t * p.spinY;
+        const angle = t * p.orbitSpeed + p.orbitOffset;
+        p.mesh.position.x = Math.cos(angle) * p.orbitRadius;
+        p.mesh.position.y = Math.sin(angle) * p.orbitRadius * 0.6;
+      }
 
       renderer.render(scene, camera);
     }
@@ -100,13 +118,10 @@ export default function HeroScene() {
 
     return () => {
       cancelAnimationFrame(frameId);
-      window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      outerGeometry.dispose();
-      outerMaterial.dispose();
-      innerGeometry.dispose();
-      innerMaterial.dispose();
+      geometries.forEach((g) => g.dispose());
+      materials.forEach((m) => m.dispose());
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement);
@@ -118,7 +133,7 @@ export default function HeroScene() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="pointer-events-none absolute right-[2vw] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 lg:block xl:right-[5vw] xl:h-[480px] xl:w-[480px]"
+      className="pointer-events-none absolute bottom-0 right-[2vw] z-0 hidden h-[320px] w-[320px] lg:block"
     />
   );
 }

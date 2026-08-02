@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useInViewport } from "./useInViewport";
 
-export default function HeroScene() {
+export default function ContactScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const inView = useInViewport(containerRef);
 
@@ -27,34 +27,24 @@ export default function HeroScene() {
     }
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.z = 6;
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.z = 6.5;
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     container.appendChild(renderer.domElement);
 
-    // Crimson outer shell, gold inner core — the same "structure resolving
-    // out of complexity" motif used throughout the blog cover art.
-    const outerGeometry = new THREE.IcosahedronGeometry(2.1, 0);
-    const outerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc8102e,
+    // A single, more resolved shape as the page's closing note — gold,
+    // where the rest of the site's 3D pieces lead with crimson.
+    const geometry = new THREE.TorusKnotGeometry(1.05, 0.32, 120, 12, 2, 3);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xc9a227,
       wireframe: true,
       transparent: true,
       opacity: 0.5,
     });
-    const outer = new THREE.Mesh(outerGeometry, outerMaterial);
-    scene.add(outer);
-
-    const innerGeometry = new THREE.OctahedronGeometry(1.05, 0);
-    const innerMaterial = new THREE.MeshBasicMaterial({
-      color: 0xc9a227,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.85,
-    });
-    const inner = new THREE.Mesh(innerGeometry, innerMaterial);
-    scene.add(inner);
+    const knot = new THREE.Mesh(geometry, material);
+    scene.add(knot);
 
     let targetX = 0;
     let targetY = 0;
@@ -79,10 +69,8 @@ export default function HeroScene() {
 
       timer.update();
       const t = timer.getElapsed();
-      outer.rotation.y = t * 0.15 + targetX * 0.3;
-      outer.rotation.x = t * 0.08 + targetY * 0.2;
-      inner.rotation.y = -t * 0.3;
-      inner.rotation.x = t * 0.22;
+      knot.rotation.y = t * 0.18 + targetX * 0.3;
+      knot.rotation.x = t * 0.1 + targetY * 0.2;
 
       renderer.render(scene, camera);
     }
@@ -103,10 +91,8 @@ export default function HeroScene() {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      outerGeometry.dispose();
-      outerMaterial.dispose();
-      innerGeometry.dispose();
-      innerMaterial.dispose();
+      geometry.dispose();
+      material.dispose();
       renderer.dispose();
       if (renderer.domElement.parentElement === container) {
         container.removeChild(renderer.domElement);
@@ -118,7 +104,7 @@ export default function HeroScene() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="pointer-events-none absolute right-[2vw] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 lg:block xl:right-[5vw] xl:h-[480px] xl:w-[480px]"
+      className="pointer-events-none absolute right-[3vw] top-1/2 z-0 hidden h-[340px] w-[340px] -translate-y-1/2 lg:block"
     />
   );
 }
