@@ -1,0 +1,218 @@
+---
+title: "prefetchQuery, dehydrate, HydrationBoundary: A Visual Walkthrough"
+slug: "prefetchquery-dehydrate-hydrationboundary-walkthrough"
+excerpt: "Why a server-rendered TanStack Query page still flashes a loading spinner, and how prefetchQuery, dehydrate, and HydrationBoundary work together to eliminate it — one function at a time."
+coverImage: "/blog/6.png"
+coverImageAlt: "A glowing crystal on one cliff sending threads of light across a dark chasm to a crystal formation on a distant cliff"
+tags: ["react", "tanstack-query", "nextjs"]
+draft: false
+---
+
+Here's a Next.js page that, on paper, does exactly what you'd want:
+
+```tsx
+// app/posts/page.tsx
+export default async function PostsPage() {
+  return <PostList />;
+}
+```
+
+```tsx
+// components/post-list.tsx
+"use client";
+import { useQuery } from "@tanstack/react-query";
+
+export function PostList() {
+  const { data, isPending } = useQuery({
+    queryKey: ["posts"],
+    queryFn: getPosts,
+  });
+
+  if (isPending) return <p>Loading...</p>;
+  return <ul>{data.map((p) => <li key={p.id}>{p.title}</li>)}</ul>;
+}
+```
+
+You're using Next.js. You're server-rendering the page. And yet every single visitor sees "Loading..." flash on screen before the posts appear — even though the whole point of server rendering was supposed to be *avoiding* that.
+
+This is the single most common surprise when combining TanStack Query with Next.js's App Router, and the fix is three functions that always seem to travel together: `prefetchQuery`, `dehydrate`, and `HydrationBoundary`. Most explanations show you the code and move on. This post is about actually seeing what each of the three is doing, one at a time.
+
+## First, why does the spinner show up at all?
+
+`useQuery` only runs in the browser — it's a React hook, and `PostList` is a Client Component. The cache it reads from lives in memory, in that specific browser tab. When the page first loads, that cache is completely empty. There's nothing in Next.js's server-rendering process that fills it ahead of time — the server has no idea `useQuery` even exists, let alone what it needs.
+
+```
+Server renders the page → sends HTML with "Loading..." in it
+        ↓
+Browser receives that HTML, shows "Loading..."
+        ↓
+Browser downloads and runs the JS bundle
+        ↓
+useQuery fires FOR THE FIRST TIME, right now, in the browser
+        ↓
+fetch() goes out, data comes back
+        ↓
+Cache fills, component re-renders, posts finally appear
+```
+
+Server rendering happened — you genuinely got HTML from the server — but that HTML had nothing useful in it, because the data TanStack Query needed was never fetched during that server render at all.
+
+## The goal: get data into the cache before the HTML is even built
+
+What you actually want is for the *server* to run the fetch, put the result somewhere, and have that result travel to the browser embedded in the page — so that by the time `useQuery` runs in the browser, it finds the answer already sitting there.
+
+That's the whole job these three functions split between them.
+
+```
+prefetchQuery   → runs the fetch, ON THE SERVER, fills a cache
+dehydrate       → freezes that cache into something that can travel over a network
+HydrationBoundary → carries the frozen cache to the browser and thaws it back into a live cache
+```
+
+Let's walk through each one on its own.
+
+## `prefetchQuery` — fetch it now, on the server
+
+```tsx
+const queryClient = new QueryClient();
+
+await queryClient.prefetchQuery({
+  queryKey: ["posts"],
+  queryFn: getPosts,
+});
+```
+
+This line does exactly what `useQuery` would do, except it runs immediately, synchronously in the sense that you `await` it, and it happens on the server during rendering — not later, in the browser, after hydration.
+
+After this line finishes, `queryClient`'s internal cache looks like this:
+
+```
+queryClient's cache:
+{
+  ["posts"]: {
+    data: [{ id: 1, title: "First post" }, { id: 2, title: "Second post" }],
+    status: "success",
+    dataUpdatedAt: 1719999999000
+  }
+}
+```
+
+Real data, sitting in a real cache — but this cache is a JavaScript object living in the server's memory, for this one request. It hasn't gone anywhere yet. The browser has no idea it exists.
+
+## `dehydrate` — freeze the cache into something portable
+
+A live `QueryClient` object can't just be shipped across a network — it's not plain data, it's a class instance with methods, timers, internal machinery. `dehydrate` solves this by extracting *just the useful parts* — the keys, the data, the status — into a plain, ordinary JavaScript object:
+
+```tsx
+const frozen = dehydrate(queryClient);
+```
+
+```
+frozen looks like:
+{
+  queries: [
+    {
+      queryKey: ["posts"],
+      queryHash: '["posts"]',
+      state: {
+        data: [{ id: 1, title: "First post" }, { id: 2, title: "Second post" }],
+        status: "success"
+      }
+    }
+  ],
+  mutations: []
+}
+```
+
+That's it — just data, no live objects, no methods. This is something that can be serialized into the HTML response and sent to the browser like any other piece of content on the page.
+
+## `HydrationBoundary` — thaw it back into a real cache, in the browser
+
+```tsx
+<HydrationBoundary state={dehydrate(queryClient)}>
+  <PostList />
+</HydrationBoundary>
+```
+
+`HydrationBoundary` is a component whose only job is: take that frozen snapshot passed in as `state`, and when this renders in the browser, restore it into the *browser's* `QueryClient` — the one created back in your `Providers` file, the one `useQuery` actually reads from.
+
+The moment that restoration happens — before `PostList` even runs its first render in the browser — the browser's cache already contains:
+
+```
+["posts"]: { data: [...], status: "success" }
+```
+
+So when `PostList` calls `useQuery({ queryKey: ["posts"] })`, it checks the cache, finds this entry already sitting there, and returns it immediately. No fetch fires. No loading state shows. The `isPending` check never even gets a chance to matter, because there was never a moment where the data was missing.
+
+## Watching the whole thing end to end
+
+```
+SERVER                                    BROWSER
+──────────────────────────────           ──────────────────────────────
+queryClient = new QueryClient()
+
+await prefetchQuery(['posts'])
+  → runs getPosts()
+  → cache: { ['posts']: {data, status} }
+
+dehydrate(queryClient)
+  → { queries: [{ queryKey: ['posts'],
+      state: {...} }] }
+
+renders <HydrationBoundary
+          state={dehydratedJSON}>
+          <PostList />
+        </HydrationBoundary>
+
+HTML (with dehydrated JSON
+embedded in it) sent over
+the network                    ──────→   HTML arrives, page starts rendering
+
+                                          JS bundle loads
+
+                                          HydrationBoundary reads its `state`
+                                          prop, restores it into the
+                                          browser's QueryClient cache
+
+                                          PostList mounts, calls useQuery(['posts'])
+
+                                          cache already has ['posts'] → returns
+                                          it immediately
+
+                                          Posts appear. No spinner ever shown.
+```
+
+## Why the `queryKey` has to match exactly
+
+This is the detail that silently breaks the whole pattern if you get it wrong. `prefetchQuery` and `useQuery` are two completely separate calls, in two completely separate files, running in two completely separate environments — the only thing connecting them is that they both say `queryKey: ["posts"]`.
+
+```tsx
+// server side
+queryClient.prefetchQuery({ queryKey: ["posts"], queryFn: getPosts })
+
+// client side — must match exactly
+useQuery({ queryKey: ["posts"], queryFn: getPosts })
+```
+
+If one of them were `["posts"]` and the other `["allPosts"]`, the cache lookup on the client would simply miss — TanStack Query would see an empty entry for `["allPosts"]`, and quietly fire a brand new fetch, spinner and all. Nothing would error. It would just silently stop working, and you'd be right back where you started, wondering why the loading spinner is still showing up.
+
+## Two prefetches at once
+
+The same pattern extends cleanly to fetching more than one thing before the page renders — run them in parallel with `Promise.all`, exactly like you'd do with any other async work on the server:
+
+```tsx
+await Promise.all([
+  queryClient.prefetchQuery({ queryKey: ["post", id], queryFn: () => getPost(id) }),
+  queryClient.prefetchQuery({ queryKey: ["comments", id], queryFn: () => getComments(id) }),
+]);
+```
+
+Both fetches run at the same time on the server. `dehydrate` picks up both entries. `HydrationBoundary` restores both. Two separate `useQuery` calls on the client, for `["post", id]` and `["comments", id]`, each find their own data waiting for them.
+
+## The one-sentence version
+
+**`prefetchQuery` fills a server-side cache, `dehydrate` freezes that cache into something that can travel in the HTML response, and `HydrationBoundary` thaws it back into the browser's live cache — so that by the time `useQuery` ever runs, there's nothing left for it to fetch.**
+
+## The broader lesson
+
+This pattern is really just a manual version of something that happens invisibly everywhere else in a server-rendered app: getting information computed on the server to survive the trip into the browser without losing it. HTML itself is doing this for your markup. `dehydrate`/`HydrationBoundary` is doing the exact same job, specifically for the shape of TanStack Query's cache — freeze what you know on one side, carry it across a boundary where nothing carries over automatically, thaw it back into something usable on the other side. Once you see it that way, the three-function combo stops looking like a special TanStack Query trick and starts looking like the same server-to-browser handoff you're already relying on for everything else on the page — just applied to one more piece of state.
