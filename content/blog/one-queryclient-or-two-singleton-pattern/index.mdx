@@ -1,0 +1,170 @@
+---
+title: "One QueryClient or Two? The Server/Browser Singleton Pattern Explained"
+slug: "one-queryclient-or-two-singleton-pattern"
+excerpt: "Two QueryClient implementations sitting in the same project, both correct in isolation — until you trace why the server needs a fresh one every time while the browser needs the exact same one forever."
+coverImage: "/blog/7.png"
+coverImageAlt: "Two glowing orbs, one crimson and one gold, facing each other and connected by a single crackling vertical thread of light"
+tags: ["react", "tanstack-query", "nextjs"]
+draft: false
+---
+
+I had these two files sitting next to each other in the same project for longer than I'd like to admit:
+
+```ts
+// app/get-query-client.ts
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { staleTime: 60 * 1000 } },
+  });
+}
+
+export function getQueryClient() {
+  if (typeof window === "undefined") return makeQueryClient();
+  if (!browserQueryClient) browserQueryClient = makeQueryClient();
+  return browserQueryClient;
+}
+```
+
+```tsx
+// app/providers.tsx
+"use client";
+
+export function Providers({ children }) {
+  const [queryClient] = useState(
+    () => new QueryClient({
+      defaultOptions: { queries: { staleTime: 60 * 1000 } },
+    })
+  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+```
+
+Notice anything? Both files build a `QueryClient`, with the exact same config, and neither one calls the other. `getQueryClient()` even has an entire branch — the browser branch — that sits there unused, because `Providers` never calls it. It creates its own client with `useState` instead.
+
+The app worked fine like this. That's actually what made it easy to miss: nothing was broken, so there was no error forcing me to look closer. But once I actually traced where each `QueryClient` was used, it became clear this wasn't intentional — it was leftover duplication from copying two separate patterns without noticing they were solving overlapping problems.
+
+## Why two separate QueryClients exist at all
+
+Start with the actual constraint driving all of this: a Server Component and a Client Component cannot share state through React Context, because Context only works in the browser. That single fact is the reason a helper like `getQueryClient()` needs to exist in the first place.
+
+```
+Server Component (e.g. PostsPage)
+        needs a QueryClient for prefetchQuery
+        cannot use React Context (server-only rendering, no hooks tree to read from)
+        → needs its OWN way to get a QueryClient
+
+Client Component (e.g. Providers, PostList)
+        needs a QueryClient for useQuery/useMutation
+        CAN use React Context
+        → gets it from <QueryClientProvider>
+```
+
+So `getQueryClient()` exists specifically to serve the *server* side — `PostsPage`, `PostDetailPage`, anywhere `prefetchQuery` is called. And `Providers`, being a Client Component, was written to just build its own client with `useState`, because that's the pattern most beginner tutorials show first.
+
+Nothing about that is wrong on its own. The problem is having the exact same config written twice, in two places, with no relationship between them.
+
+## Tracing what each one is actually for
+
+```
+getQueryClient() — used in Server Components
+        ↓
+called by PostsPage, PostDetailPage (via prefetchQuery)
+        ↓
+on the server: returns a BRAND NEW client every single call
+        ↓
+filled with data, dehydrated, then thrown away — it never persists
+
+Providers's useState client — used in Client Components
+        ↓
+created once via useState, lives as long as the browser tab does
+        ↓
+this is the client useQuery and useMutation actually read from
+```
+
+These two clients never touch each other directly. The only thing connecting them is the dehydrated JSON snapshot that travels between server and browser — the mechanism from the `prefetchQuery` → `dehydrate` → `HydrationBoundary` handoff. So functionally, the app was fine. But there's a real cost hiding in the redundancy.
+
+## The actual cost of the duplication
+
+**Config drift.** `staleTime: 60 * 1000` is written twice. Six months from now, if you change one and forget the other, the server-prefetched cache and the browser cache disagree about what "fresh" means — a subtle, hard-to-notice inconsistency with no error message anywhere.
+
+**Dead code.** The browser branch inside `getQueryClient()` — the singleton pattern with the module-level `browserQueryClient` variable — was written, tested mentally, and never actually called by anything. It's just sitting there, doing nothing, adding confusion for the next person reading the file (including future-you).
+
+**A missed detail about Suspense.** This is the one that actually matters technically, not just stylistically. `useState(() => new QueryClient())` assumes the component only ever renders once per mount. But if `Providers` ever gets caught inside a Suspense boundary that suspends and retries — which can genuinely happen with certain data-fetching patterns in the App Router — React may discard the in-progress render and start over. A `useState`-created value can get thrown away and recreated in that scenario. A module-level singleton, sitting entirely outside React's render cycle, survives that unconditionally, because it was never tied to any particular render in the first place.
+
+## What the official pattern actually looks like
+
+The fix is smaller than it sounds: make `Providers` call the exact same helper the Server Components already use, instead of building its own client separately.
+
+```tsx
+// app/providers.tsx — after
+"use client";
+
+import { QueryClientProvider } from "@tanstack/react-query";
+import { getQueryClient } from "@/app/get-query-client";
+
+export function Providers({ children }) {
+  const queryClient = getQueryClient(); // ← no useState, just call the helper
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+```
+
+Nothing changes in `get-query-client.ts` itself — it was already written correctly, it just wasn't being used by the one place that needed its browser branch.
+
+```ts
+// app/get-query-client.ts — unchanged, now actually fully used
+export function getQueryClient() {
+  if (typeof window === "undefined") {
+    return makeQueryClient(); // Server Components hit this every time
+  }
+  if (!browserQueryClient) {
+    browserQueryClient = makeQueryClient(); // Providers hits this now too
+  }
+  return browserQueryClient;
+}
+```
+
+## Watching the corrected version in action
+
+```
+getQueryClient() called from a Server Component (PostsPage)
+        ↓
+typeof window === "undefined" → true (we're in Node.js)
+        ↓
+returns a fresh makeQueryClient() — every single call, every request
+        ↓
+this client gets prefetched, dehydrated, then discarded
+
+getQueryClient() called from Providers, in the browser
+        ↓
+typeof window === "undefined" → false (we're in the browser)
+        ↓
+first call: browserQueryClient is undefined → create it, store it
+        ↓
+every call after: browserQueryClient already exists → return the same one
+        ↓
+this is the ONE client useQuery/useMutation read from, for the
+whole life of the tab
+```
+
+One function. One place the config lives. Both environments get exactly the client they need, and the distinction between "fresh every time" (server) and "same one forever" (browser) is handled by a single `if` statement instead of being reimplemented twice.
+
+## Why the server needs a fresh client every single time — a detail worth not glossing over
+
+It's worth pausing on why the server branch deliberately does the *opposite* of the browser branch. A Next.js server isn't just running your app for you alone — it's handling requests from many different visitors, often at the same time. If the server reused a single `QueryClient` across requests the way the browser reuses one across renders, one visitor's cached data could leak into another visitor's response:
+
+```
+Without a fresh client per request:
+  User A's request → prefetches their data → fills the shared client
+  User B's request → prefetchQuery finds User A's data already cached
+                    → serves it to User B ← privacy bug
+```
+
+A brand-new `QueryClient` per server-side call closes that gap entirely — there's nothing to leak, because nothing persists between requests on the server in the first place.
+
+## The one-sentence version
+
+**A Server Component and a Client Component both need a `QueryClient`, but for opposite reasons — the server needs a fresh one every time to avoid leaking data between users, and the browser needs the exact same one every time to keep its cache alive — so one helper function, branching on `typeof window`, should be the single source both sides call, instead of each side building its own.**
+
+## The broader lesson
+
+This wasn't a bug in the sense of anything crashing or behaving visibly wrong. It was a *design* smell — two pieces of code solving what looked like separate problems, when they were actually the same problem viewed from two different environments. The fix wasn't clever; it was just noticing that "how do Server Components get a QueryClient" and "how does the browser get a QueryClient" are really one question — "how does *anything* in this app get a QueryClient" — and a single function answering both sides of that question, explicitly, is easier to reason about, easier to keep consistent, and harder to accidentally drift out of sync than two implementations that happen to look similar today.
