@@ -11,6 +11,7 @@
     "blog:unpublish": "tsx scripts/unpublish-post.ts"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "dotenv": "^17.4.2",
     "gray-matter": "^4.0.3",
     "image-size": "^2.0.2",
