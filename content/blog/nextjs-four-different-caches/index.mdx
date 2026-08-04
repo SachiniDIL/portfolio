@@ -1,0 +1,137 @@
+---
+title: "Next.js Has Four Different Caches. Here's What Each One Actually Does"
+slug: "nextjs-four-different-caches"
+excerpt: "TanStack Query's cache, the Data Cache, the Router Cache, and the database itself — four separate systems that don't know about each other, plus a decision table for figuring out which one is actually serving stale data."
+coverImage: "/blog/8.jpg"
+coverImageAlt: "Four identical stone archways in a row, three dim and crimson-tinted, the fourth fully lit and glowing gold-white"
+tags: ["react", "tanstack-query", "nextjs"]
+draft: false
+---
+
+I added `cache: "no-store"` to a `fetch` call once because a mutation wasn't showing up after a refetch. It fixed the problem. I moved on without really understanding why it fixed the problem — I just knew "no-store" meant "don't cache this" and that felt like the right instinct.
+
+Later, a different but similar-looking bug showed up: `invalidateQueries` was firing, the network tab showed a request going out, and the UI *still* showed old data. Same symptom as before. Same fix — `cache: "no-store"` — didn't help this time. That's when it became clear I'd been treating "the cache" as one thing, when it's actually four completely separate systems that happen to sit in the same request path.
+
+Here's what each one actually is, and — more usefully — how to tell which one is misbehaving when something looks stale.
+
+## The four, at a glance
+
+```
+Browser                          Server
+─────────────────────────────    ──────────────────────────────────
+1. TanStack Query cache          2. Next.js Router Cache
+   in RAM, keyed by queryKey        stores rendered page output
+
+                                  3. Next.js Data Cache
+                                     stores individual fetch() responses
+
+                                  4. The database
+                                     the actual source of truth
+```
+
+Each one is cleared differently. Each one exists to solve a different problem. None of them know the others exist.
+
+## 1. TanStack Query cache — the one most people think of first
+
+This is the cache living in the browser's memory, built and managed by `QueryClient`. Every `useQuery` call reads from it; every `queryKey` is a row in it.
+
+```tsx
+useQuery({ queryKey: ["posts"], queryFn: getPosts })
+```
+
+```
+cleared by: invalidateQueries({ queryKey: ["posts"] })
+lives:      in the browser's RAM, for the life of the tab
+controls:   whether a COMPONENT refetches data
+```
+
+If a component is showing stale data and a hard refresh fixes it, this is usually the layer at fault — a `staleTime` that's too long, or a missing `invalidateQueries` after a mutation.
+
+## 2. Next.js Data Cache — caches individual fetch responses, on the server
+
+This one is easy to miss because it's invisible unless you specifically look for it. Next.js extends the native `fetch` function so that, by default, responses can be cached on the server across requests — separate from anything TanStack Query is doing.
+
+```ts
+// without any cache option, Next.js may cache this response
+const res = await fetch("https://api.example.com/posts");
+```
+
+```
+cleared by:  cache: "no-store" on the fetch call (bypasses it entirely),
+             or revalidateTag() in a Server Action
+lives:       on the server, across multiple requests from different users
+controls:    whether fetch() reaches the real source, or returns a
+             previously cached response instead
+```
+
+This is the layer `cache: "no-store"` actually talks to. It has nothing to do with TanStack Query directly — it's a layer *underneath* wherever your `queryFn` calls `fetch`.
+
+## 3. Next.js Router Cache — caches rendered page output, in the browser
+
+This is a different thing from the Data Cache, despite the similar name. When you navigate between pages in a Next.js app, the framework can cache the *rendered output* of a route — the RSC payload — so navigating back to a page you've already visited doesn't necessarily re-run the Server Component at all.
+
+```
+User visits /posts       → PostsPage runs, RSC payload cached
+User navigates to /posts/123
+User clicks back          → Router Cache HIT → PostsPage does NOT re-run
+```
+
+```
+cleared by:  revalidatePath() in a Server Action, or it expires on
+             its own after a short window (30 seconds for dynamic routes,
+             by default)
+lives:       in the browser, tied to client-side navigation
+controls:    whether a SERVER COMPONENT re-runs on navigation
+```
+
+This is the one that trips people up specifically in the `prefetchQuery` pattern — if the Router Cache serves a page without re-running the Server Component, `prefetchQuery` never fires again either, and whatever was in the TanStack Query cache from the first visit is all the client has, until something else forces a refetch.
+
+## 4. The database — not really a cache, but worth including
+
+MongoDB, Postgres, whatever's backing your app — this is the actual source of truth. Nothing here is "cached" in the sense the other three are; every read reflects the current state, immediately, the moment a write completes. It's on this list because every stale-data bug ultimately traces back to one of the three caches above serving something *other* than what's currently sitting here.
+
+## Watching all four operate on one request
+
+Trace what happens when a user adds a post, then navigates back to the posts list, with every layer active:
+
+```
+User submits "Add Post" form
+        ↓
+useMutation's mutationFn → POST /api/posts → writes to MongoDB (4)
+        ↓
+onSuccess → invalidateQueries({ queryKey: ["posts"] })
+        ↓
+TanStack Query cache (1) marks ["posts"] stale, refetches immediately
+        ↓
+that refetch is a fetch() call — does it hit the Data Cache (2)?
+        ↓
+  IF cache: "no-store" is set on that fetch → skips (2) entirely, hits MongoDB (4) directly ✅
+  IF NOT set → might return a cached response from (2), missing the new post ❌
+        ↓
+Separately: does navigating to /posts hit the Router Cache (3)?
+        ↓
+  IF the RSC payload for /posts is still cached → PostsPage does NOT re-run,
+    prefetchQuery does NOT fire again — but this doesn't matter for THIS
+    scenario, because (1) already refetched independently via invalidateQueries
+```
+
+Notice: in this particular flow, `invalidateQueries` handles layer (1) correctly regardless of what the Router Cache (3) does, *as long as* layer (2) isn't silently serving a stale response underneath it. That's exactly why `cache: "no-store"` matters specifically on any fetch a mutation's data depends on — it's closing the one link in the chain that `invalidateQueries` has no power over.
+
+## A decision table for "why is this stale"
+
+| Symptom | Likely layer | Fix |
+|---|---|---|
+| Component shows old data, hard refresh fixes it | TanStack Query cache (1) | Check `staleTime`, add `invalidateQueries` after the relevant mutation |
+| Mutation succeeds, `invalidateQueries` fires, refetch happens, data is STILL old | Next.js Data Cache (2) | Add `cache: "no-store"` to the underlying `fetch`, or `revalidateTag()` |
+| Navigating back to a page shows old content, but a full URL reload shows the new content | Next.js Router Cache (3) | `revalidatePath()` after the mutation, or wait for the cache window to expire |
+| Even a full reload shows old data | Not a cache at all | The write never actually reached the database — check the mutation logic itself |
+
+That last row matters as much as the other three — it's the reminder that "it's stale" doesn't always mean "something is cached." Sometimes the write simply didn't happen.
+
+## The one-sentence version
+
+**TanStack Query's cache decides whether a *component* refetches, the Data Cache decides whether an individual `fetch()` reaches its real source, and the Router Cache decides whether a *Server Component* re-runs on navigation — three independent gates, each with its own trigger to clear it, and a stale-data bug is really a question of which specific gate is still closed.**
+
+## The broader lesson
+
+"The cache" being treated as a single, singular thing is almost always a sign of not yet knowing which layer you're actually looking at. Every layer here was added for a genuinely good reason — TanStack Query's cache exists so components don't over-fetch, the Data Cache exists so identical server-side fetches don't hit an external API repeatedly, the Router Cache exists so navigation between pages feels instant. None of them are wrong to have. The debugging skill isn't "clear the cache" as a single action — it's being able to name, specifically, which of the four you're currently looking at, because each one is cleared by a completely different mechanism, and reaching for the wrong one just wastes time chasing a bug that was never in that layer to begin with.
