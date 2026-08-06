@@ -1,0 +1,136 @@
+---
+title: "staleTime vs invalidateQueries: Who Wins?"
+slug: "staletime-vs-invalidatequeries-who-wins"
+excerpt: "A 60-second staleTime clock with 45 seconds left on it versus an invalidateQueries call fired 30 seconds ago — it sounds like a race between two timers, and that instinct is exactly backwards."
+coverImage: "/blog/9.jpg"
+coverImageAlt: "A dark hourglass with crimson sand in the top chamber falling as gold sand into the bottom chamber"
+tags: ["react", "tanstack-query", "caching"]
+draft: false
+---
+
+Here's a scenario that sounds like it should have an obvious answer, right up until you actually try to answer it:
+
+```tsx
+new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 60 * 1000 }, // fresh for 60 seconds
+  },
+});
+```
+
+```
+9:00:00 — a page fetches posts. Cache fills. staleTime timer starts,
+          set to expire at 9:01:00.
+
+9:00:15 — the user adds a new post. onSuccess fires:
+          queryClient.invalidateQueries({ queryKey: ["posts"] })
+
+9:00:45 — the user navigates back to the posts page.
+```
+
+The `staleTime` clock says the data is still fresh for another 15 seconds. `invalidateQueries` was called 30 seconds ago, well before that clock ran out. So at 9:00:45 — does the page show the 60-second-old cached data, or does it refetch and show the new post?
+
+If you're not sure, you're not alone — this is one of those questions that sounds like it should be answered by "whichever timer runs out first," and that instinct is exactly backwards.
+
+## The instinct that's wrong
+
+The natural first guess treats `staleTime` and `invalidateQueries` as two competing timers, racing each other:
+
+```
+staleTime timer:      "I expire at 9:01:00"
+invalidateQueries:    "I fired at 9:00:15, does that matter before 9:01:00?"
+```
+
+Under that model, you might reasonably guess the `staleTime` timer "wins" because it hasn't run out yet. That's not how any of this works — because `staleTime` was never a timer that overrides anything. It's closer to a default assumption that anything else can override at will.
+
+## What `staleTime` actually is
+
+`staleTime` answers exactly one question: *if nothing else has told me otherwise, how long should I trust this data without checking again?*
+
+```
+data fetched at 9:00:00
+        ↓
+TanStack Query stamps it: dataUpdatedAt = 9:00:00
+        ↓
+staleTime = 60s means:
+  "unless told otherwise, treat this as fresh until 9:01:00"
+```
+
+That's a passive rule. It only matters in the *absence* of anything more specific being said. It's the equivalent of "assume milk is good for two weeks unless the label says otherwise" — a sensible default, not a guarantee that overrides the label.
+
+## What `invalidateQueries` actually is
+
+`invalidateQueries` is the label being changed, right now, by someone with more specific information than the default assumption had.
+
+```tsx
+queryClient.invalidateQueries({ queryKey: ["posts"] })
+```
+
+This doesn't ask "has staleTime run out yet?" It doesn't consult the timer at all. It goes directly to the cache entry for `["posts"]` and marks it stale, immediately, unconditionally — overwriting whatever the passive `staleTime` assumption currently believed.
+
+```
+BEFORE invalidateQueries:
+  ["posts"] → { data: [...], status: "fresh until 9:01:00" }
+
+AFTER invalidateQueries, at 9:00:15:
+  ["posts"] → { data: [...], status: "stale, right now" }
+```
+
+The 45 remaining seconds on the `staleTime` clock don't get consulted, don't get partially honored, don't get averaged with anything. They're just irrelevant the instant `invalidateQueries` runs, because staleness was never actually being tracked by a countdown — it's recalculated fresh, every single time something asks "is this stale?", by checking `dataUpdatedAt` against `staleTime` **unless** something has explicitly marked it stale already.
+
+## So, back to the original scenario
+
+```
+9:00:00 — fetch fires, cache fills, dataUpdatedAt = 9:00:00
+9:00:15 — invalidateQueries(['posts']) → marked stale, right now,
+          overriding the 9:01:00 staleTime expectation entirely
+9:00:45 — user navigates back to /posts
+          → useQuery checks the cache
+          → cache entry is marked stale (has been since 9:00:15)
+          → fires a refetch
+          → new post appears ✅
+```
+
+`invalidateQueries` wins — completely, not partially, and not because it happened to line up favorably with the clock. It would have won even if it had fired at 9:00:01, one second after the original fetch, with 59 full seconds left on the `staleTime` clock. The clock was never something invalidation had to wait out.
+
+## Why this asymmetry makes sense once you see the actual roles
+
+`staleTime` and `invalidateQueries` aren't two versions of the same mechanism competing for priority. They're solving two different problems, from two different directions:
+
+```
+staleTime:
+  TanStack Query doesn't know if the data on the server has changed.
+  It's guessing, based on how long ago it last checked.
+  "Probably still fine" is the best it can do without more information.
+
+invalidateQueries:
+  YOU know the data changed, because you just changed it yourself,
+  via a mutation you triggered and watched succeed.
+  This isn't a guess — it's a fact you have direct knowledge of.
+```
+
+A guess never outranks a fact. `staleTime` is TanStack Query covering for the fact that it can't independently know when server data changes — it can only estimate based on elapsed time. `invalidateQueries` is you supplying the actual answer, the moment you have it. Of course the actual answer wins; the timer was only ever a stand-in for not having one yet.
+
+## The part that's still worth knowing: staleness alone doesn't trigger anything
+
+One more piece that resolves a related confusion: neither `staleTime` expiring naturally, nor `invalidateQueries` marking something stale, *by itself* causes a refetch to happen instantly everywhere. Staleness is a status, not an action. A refetch still needs a trigger:
+
+```
+possible triggers:
+  - a component mounts (e.g. navigating to the page)
+  - the browser window regains focus
+  - the network reconnects
+  - a manual refetch() call
+```
+
+The difference is what happens once one of those triggers fires. If a query is still fresh, the trigger does nothing — cached data is handed back as-is. If a query is stale — whether it went stale from the clock running out, or from an explicit `invalidateQueries` call — the next trigger causes an actual refetch. In the scenario above, "navigating back to /posts" was the trigger; `invalidateQueries` was what made sure that trigger actually resulted in fresh data instead of a 45-second-old cached response.
+
+There's one exception worth flagging: if a component is *already mounted and watching that query* when `invalidateQueries` fires, TanStack Query doesn't wait for a separate trigger — it refetches immediately, in place, because an active observer counts as an ongoing trigger of its own.
+
+## The one-sentence version
+
+**`staleTime` is TanStack Query's default assumption about how long data stays trustworthy without more information, and `invalidateQueries` is you supplying that information directly — so invalidation always overrides the timer, immediately and completely, because a fact from the one place that actually knows always outranks a guess based on elapsed time.**
+
+## The broader lesson
+
+This is a smaller instance of a pattern that shows up constantly in caching systems generally: heuristics and explicit signals aren't peers competing on equal footing. A heuristic exists specifically to fill the gap *until* an explicit signal arrives. The moment one does, the heuristic isn't defeated in some contest — it was never actually in the running to begin with. Once you see `staleTime` as "the best guess available when nothing better exists" rather than "a promise that can't be broken," the question "who wins" stops being a race and starts being obvious.
