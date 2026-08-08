@@ -310,18 +310,42 @@ export default function Projects() {
           type="button"
           aria-expanded={showPractice}
           onClick={() => setShowPractice((v) => !v)}
-          className="group flex w-full items-center justify-between gap-6 py-7 text-left cursor-pointer"
+          className="group flex w-full cursor-pointer items-center justify-between gap-6 py-7 text-left transition-colors duration-200 hover:bg-bg2"
         >
           <span>
             <span className="display block text-[clamp(24px,3.4vw,34px)] leading-none text-paper transition-colors duration-200 group-hover:text-crimson">
               {showPractice ? "Hide practice builds" : `Practice builds (${practiceBuilds.length})`}
             </span>
             <span className="serif-i mt-2 block text-[clamp(14px,1.6vw,17px)] text-gold">
-              built to learn, not flagship work.
+              {showPractice ? "collapse this section" : "built to learn, not flagship work — worth a look ↓"}
             </span>
           </span>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-line text-[18px] leading-none text-crimson transition-colors duration-200 group-hover:border-crimson">
-            {showPractice ? "−" : "+"}
+          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+            {!showPractice && (
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full bg-crimson/30 animate-ping"
+              />
+            )}
+            <span
+              className={`relative flex h-12 w-12 items-center justify-center rounded-full border border-crimson bg-crimson/10 text-crimson transition-all duration-300 ease-out group-hover:scale-110 group-hover:bg-crimson group-hover:text-paper ${
+                showPractice ? "rotate-180" : ""
+              }`}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
           </span>
         </button>
 
