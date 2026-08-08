@@ -62,7 +62,15 @@ const stats = [
   },
 ];
 
-const practiceBuilds = [
+type PracticeBuild = {
+  name: string;
+  sub: string;
+  desc: string;
+  stack: string;
+  repo?: { label: string; href: string };
+};
+
+const practiceBuilds: PracticeBuild[] = [
   {
     name: "DevPing",
     sub: "url uptime monitor",
@@ -74,6 +82,13 @@ const practiceBuilds = [
     sub: "ssr & caching deep-dive",
     desc: "A from-scratch build covering the TanStack Query v5 mental model with the Next.js App Router: SSR patterns (prefetchQuery + dehydrate + HydrationBoundary), useQuery / useMutation / useQueries, dependent queries, and the two-cache system, backed by MongoDB Atlas.",
     stack: "Next.js App Router · TanStack Query v5 · MongoDB Atlas",
+  },
+  {
+    name: "simple-rag",
+    sub: "retrieval-augmented generation, built by hand",
+    desc: "A full-stack RAG pipeline built with no LangChain and no LlamaIndex, to understand retrieval at a mechanical level: custom chunking with configurable overlap, a from-scratch NumPy vector store, hybrid search combining BM25 and semantic embeddings via Reciprocal Rank Fusion, a relevance threshold that refuses to answer when nothing in the corpus is relevant, and local, free LLM generation via Ollama. A hand-written hashing embedder built alongside the real one gave a direct, measured comparison — on nonsense queries it scored false confidence up to 0.45, while real semantic embeddings correctly scored ~0.07–0.11.",
+    stack: "Python · FastAPI · sentence-transformers · rank-bm25 · NumPy · Ollama · Next.js · TanStack Query",
+    repo: { label: "github repo", href: "https://github.com/SachiniDIL/simple-RAG" },
   },
 ];
 
@@ -297,7 +312,7 @@ export default function Projects() {
           onClick={() => setShowPractice((v) => !v)}
           className="flex w-full items-center justify-between py-6 font-mono text-[11px] uppercase tracking-[0.2em] text-muted transition-colors duration-200 hover:text-crimson"
         >
-          <span>{showPractice ? "Hide practice builds" : "View practice builds (2)"}</span>
+          <span>{showPractice ? "Hide practice builds" : `View practice builds (${practiceBuilds.length})`}</span>
           <span className="text-[16px] leading-none text-crimson">{showPractice ? "−" : "+"}</span>
         </button>
 
@@ -324,11 +339,23 @@ export default function Projects() {
                 <p className="mt-3.5 font-mono text-xs uppercase tracking-[0.06em] text-muted">
                   {project.stack}
                 </p>
+                {project.repo && (
+                  <a
+                    href={project.repo.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={repoLinkClasses}
+                  >
+                    {project.repo.label}&nbsp;↗
+                  </a>
+                )}
               </Reveal>
             ))}
-            <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
-              Repos — links coming soon
-            </p>
+            {practiceBuilds.some((p) => !p.repo) && (
+              <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.15em] text-muted/60">
+                Remaining repos — links coming soon
+              </p>
+            )}
           </div>
         )}
       </div>
