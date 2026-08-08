@@ -310,17 +310,23 @@ export default function Projects() {
           type="button"
           aria-expanded={showPractice}
           onClick={() => setShowPractice((v) => !v)}
-          className="flex w-full items-center justify-between py-6 font-mono text-[11px] uppercase tracking-[0.2em] text-muted transition-colors duration-200 hover:text-crimson"
+          className="group flex w-full items-center justify-between gap-6 py-7 text-left cursor-pointer"
         >
-          <span>{showPractice ? "Hide practice builds" : `View practice builds (${practiceBuilds.length})`}</span>
-          <span className="text-[16px] leading-none text-crimson">{showPractice ? "−" : "+"}</span>
+          <span>
+            <span className="display block text-[clamp(24px,3.4vw,34px)] leading-none text-paper transition-colors duration-200 group-hover:text-crimson">
+              {showPractice ? "Hide practice builds" : `Practice builds (${practiceBuilds.length})`}
+            </span>
+            <span className="serif-i mt-2 block text-[clamp(14px,1.6vw,17px)] text-gold">
+              built to learn, not flagship work.
+            </span>
+          </span>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-line text-[18px] leading-none text-crimson transition-colors duration-200 group-hover:border-crimson">
+            {showPractice ? "−" : "+"}
+          </span>
         </button>
 
         {showPractice && (
           <div className="border-t border-line pb-10">
-            <p className="serif-i mt-8 text-[clamp(16px,2vw,22px)] text-gold">
-              built to learn, not flagship work.
-            </p>
             {practiceBuilds.map((project, i) => (
               <Reveal
                 key={project.name}
