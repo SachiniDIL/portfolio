@@ -70,45 +70,47 @@ export default function Header() {
   }, [open, close]);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-sm">
-      <div className="flex h-14 items-center justify-between px-[6vw]">
-        <Link
-          href="/"
-          className="display text-[20px] tracking-[0.04em] text-paper transition-colors duration-200 hover:text-crimson"
-        >
-          Sachini Dilrangi<span className="text-crimson">.</span>
-        </Link>
-        <div className="hidden items-center gap-7 md:flex">
-          <nav aria-label="Primary" className="flex items-center gap-7">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted transition-colors duration-200 hover:text-crimson"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <a
-            href={site.cvPath}
-            download
-            className="border border-line px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
+    <>
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-sm">
+        <div className="flex h-14 items-center justify-between px-[6vw]">
+          <Link
+            href="/"
+            className="display text-[20px] tracking-[0.04em] text-paper transition-colors duration-200 hover:text-crimson"
           >
-            CV ↓
-          </a>
+            Sachini Dilrangi<span className="text-crimson">.</span>
+          </Link>
+          <div className="hidden items-center gap-7 md:flex">
+            <nav aria-label="Primary" className="flex items-center gap-7">
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted transition-colors duration-200 hover:text-crimson"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+            <a
+              href={site.cvPath}
+              download
+              className="border border-line px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-paper transition-colors duration-200 hover:border-crimson hover:text-crimson"
+            >
+              CV ↓
+            </a>
+          </div>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            onClick={() => setOpen(true)}
+            className="font-mono text-[11px] uppercase tracking-[0.2em] text-paper transition-colors duration-200 hover:text-crimson md:hidden"
+          >
+            Menu
+          </button>
         </div>
-        <button
-          ref={menuButtonRef}
-          type="button"
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          onClick={() => setOpen(true)}
-          className="font-mono text-[11px] uppercase tracking-[0.2em] text-paper transition-colors duration-200 hover:text-crimson md:hidden"
-        >
-          Menu
-        </button>
-      </div>
+      </header>
 
       {open && (
         <div
@@ -157,6 +159,6 @@ export default function Header() {
           </nav>
         </div>
       )}
-    </header>
+    </>
   );
 }
