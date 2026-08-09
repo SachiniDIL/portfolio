@@ -3,6 +3,7 @@ import { Bebas_Neue, Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { site } from "@/lib/site";
 import Header from "@/components/Header";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 const bebas = Bebas_Neue({
@@ -68,6 +69,7 @@ export default function RootLayout({
         <Header />
         {children}
         <Analytics />
+        <GoogleAnalytics gaId="G-MZ914HGWML" />
       </body>
     </html>
   );
