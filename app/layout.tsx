@@ -4,7 +4,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { site } from "@/lib/site";
 import Header from "@/components/Header";
 import { GoogleAnalytics } from "@next/third-parties/google";
-// @ts-expect-error CSS import is handled by Next.js.
 import "./globals.css";
 
 const bebas = Bebas_Neue({
