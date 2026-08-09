@@ -1,0 +1,126 @@
+---
+title: "What Is an Embedding, Actually?"
+slug: "what-is-an-embedding-actually"
+excerpt: "Two sentences that share exactly one word — 'the' — and mean almost the same thing. Why word-matching fails at this, and what it actually means to represent meaning as a point in space instead."
+coverImage: "/blog/10.jpg"
+coverImageAlt: "A dark star field with two glowing amber points close together near the center and one isolated point far below"
+tags: ["embeddings", "semantic-search", "machine-learning"]
+draft: false
+---
+
+Try this search in your head. You have two sentences:
+
+```
+"The deadline for the assignment was extended."
+"They pushed back the due date."
+```
+
+Now write a function that checks if these two sentences are "similar." The obvious first attempt: split each sentence into words, and count how many words they have in common.
+
+```python
+def shared_words(a, b):
+    words_a = set(a.lower().split())
+    words_b = set(b.lower().split())
+    return words_a & words_b
+
+shared_words(
+    "the deadline for the assignment was extended",
+    "they pushed back the due date",
+)
+# {'the'}
+```
+
+One word. "The." That's it. By this measure, these two sentences are almost completely unrelated — even though any human reading both would immediately agree they mean close to the same thing.
+
+This is the actual problem embeddings exist to solve. Not "how do I search text faster," but "how do I compare *meaning* instead of *spelling*."
+
+## The real question
+
+How do you turn a sentence into something a computer can compare for meaning, not just for matching words?
+
+## The wrong mental model
+
+Most people's first guess, when they hear "the AI turns text into numbers," pictures something like a lookup table — as if "deadline" maps to `47`, "extended" maps to `112`, and the sentence becomes a list of word-IDs.
+
+That's not it. A list of word-IDs still only tells you *which words appeared* — it's the `shared_words` function from above wearing a disguise. You could sort those IDs, hash them, bucket them any way you like, and two sentences with completely different words would still show up as unrelated.
+
+The actual idea is different in kind, not just in implementation.
+
+## The real mental model: meaning as a location
+
+An embedding model doesn't ask "which words are here." It asks "given everything this model has learned about how words and phrases relate to each other, where does this whole sentence *belong* in an imaginary space of meaning?"
+
+Every sentence gets mapped to a point in that space — represented as a list of numbers, usually a few hundred of them. Two sentences that mean similar things end up at nearby points. Two sentences about completely different topics end up far apart. Crucially, the model learned *where things belong* from patterns across huge amounts of text — it wasn't told "deadline" and "due date" mean the same thing; it inferred that from seeing how those words get used, over and over, in similar contexts.
+
+```
+                    "the assignment deadline
+                     has been extended"
+                            •
+                              \
+                               \  close together
+                                \  (similar meaning)
+                                 •
+                    "they pushed back
+                     the due date"
+
+
+
+         •  "what is a mango"
+        (far away — unrelated meaning)
+```
+
+That picture — points in space, distance meaning similarity — is the entire idea. Once you have that, everything else is just "how do we measure distance," and "how do we teach a model to place points sensibly."
+
+## How the distance actually gets measured
+
+You might expect "distance" to work like distance on a map — closer points have a smaller number between them. Embeddings usually measure something slightly different: **cosine similarity**, which looks at the *angle* between two vectors rather than the straight-line gap between them.
+
+```python
+import numpy as np
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+```
+
+Why angle instead of distance? Picture two arrows starting from the same origin point. If they point in almost the same direction, it doesn't matter much whether one is twice as long as the other — they're still pointing at roughly the same idea. Straight-line distance would penalize that length difference; angle mostly ignores it. For meaning, direction turns out to matter more than magnitude — a short sentence and a long one can still be "about" the same thing.
+
+The result is a single number: close to 1 means "very similar meaning," close to 0 means "unrelated," and negative values (rarer in practice) lean toward "opposite."
+
+## The tell that separates real embeddings from a lookup table
+
+Here's a detail that's easy to miss and genuinely useful for spotting the difference: real embedding vectors are **dense** — nearly every one of those few hundred numbers has some non-zero value. A word-counting or word-ID approach produces something **sparse** instead — a vector that's almost entirely zeros, with a small handful of positions lighting up for the specific words that happened to appear.
+
+```
+Sparse (word-counting style):
+[0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, ...]
+              ↑ "deadline"          ↑ "extended"
+              hit once               hit once
+        (everything else: never touched)
+
+Dense (real embedding):
+[0.14, -0.08, 0.31, 0.02, -0.19, 0.27, 0.05, -0.11, ...]
+   every single number holds some value —
+   each one encodes some learned feature of meaning
+```
+
+That's not a minor implementation detail — it's the reason dense vectors can represent meaning at all. Each of those few hundred numbers has learned to capture some abstract feature (something like "is this about time/deadlines," though never anything so cleanly labeled in practice), and a sentence's *combination* of all those features is what places it precisely in meaning-space. A sparse, mostly-zero vector simply doesn't have enough independent signal to do that — it can only ever tell you which specific words showed up.
+
+## Word-matching vs. meaning-matching, side by side
+
+| | Word-matching (lexical) | Embeddings (semantic) |
+|---|---|---|
+| Asks | "Do the same words appear?" | "Do these mean the same thing?" |
+| Vector shape | Sparse — mostly zeros | Dense — every value contributes |
+| Good at | Exact terms, codes, names, acronyms | Paraphrasing, synonyms, related concepts |
+| Blind to | Paraphrasing entirely | Can sometimes underweight a rare, specific term |
+| Example tools | Keyword search, TF-IDF, BM25 | Sentence-transformer models, most modern search embeddings |
+
+Neither one is strictly "better" — they fail in different, predictable ways, which is exactly why production search systems often combine both rather than picking a side.
+
+## The actual rule
+
+**An embedding isn't a code for a word — it's a coordinate for a meaning, and two sentences count as "similar" when their coordinates land close together, no matter how different their actual words are.**
+
+## Why this matters beyond search boxes
+
+It's tempting to file "embeddings" under search features and move on. But the same underlying idea — mapping something into a space where distance means similarity — shows up anywhere a system needs to compare things by resemblance rather than by exact match: recommending a song someone might like, grouping similar support tickets, detecting near-duplicate content, even comparing images. The specific numbers change; the core move doesn't. Once "closeness in a learned space equals similarity in meaning" clicks for text, it stops looking like a special AI trick and starts looking like a tool you'll recognize everywhere.
