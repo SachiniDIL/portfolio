@@ -1,0 +1,92 @@
+---
+title: "Why Your RAG System Needs to Say \"I Don't Know\""
+slug: "why-rag-needs-to-say-i-dont-know"
+excerpt: "top_k doesn't know the difference between the best of five great matches and the least-terrible of five terrible ones. A retrieval function that always returns something isn't more helpful — it's just failing silently instead of failing loudly."
+coverImage: "/blog/12.jpg"
+coverImageAlt: "A small oil lantern glowing in near-total darkness, its light reaching only a short distance around it"
+tags: ["rag", "semantic-search", "machine-learning"]
+draft: false
+---
+
+Here's a retrieval function that looks completely reasonable:
+
+```python
+def retrieve(query, documents, top_k=3):
+    scored = [(doc, similarity(query, doc)) for doc in documents]
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    return scored[:top_k]
+```
+
+Ask it something the document collection actually covers, and it works exactly as expected — it finds the closest matches and hands them back.
+
+Now ask it something completely unrelated to anything in the collection. A random, off-topic question with no business being anywhere near this data.
+
+It still returns three results. Sorted by score, formatted identically, looking exactly as confident as a correct answer. Nothing about the *output* signals that anything went wrong — because as far as this function is concerned, nothing did. It was asked to find the top 3 closest matches, and it dutifully found the top 3 closest matches. It has no concept of "closest" also meaning "not actually close at all."
+
+That gap — between "technically ran successfully" and "actually found something relevant" — is where a lot of retrieval systems quietly go wrong.
+
+## The real question
+
+How do you make a system say "I don't have this" instead of always confidently handing back *something*?
+
+## Why "just return the top result" isn't enough
+
+The instinct is to assume the scores will sort themselves out — surely an irrelevant match will score low enough that it's obviously wrong? Sometimes. But "low" is relative, and relative to what, exactly? If every single stored item scores between 0.05 and 0.15 for a given query, the "top" result at 0.15 isn't meaningfully better than the others — it's just the least-bad option among a pile of bad ones. `top_k` doesn't know the difference between "the best of five great matches" and "the least-terrible of five terrible ones." Rank alone throws away exactly the information you need.
+
+## The fix: stop trusting rank, start checking the actual number
+
+The fix isn't a smarter sorting algorithm — it's adding one more check after sorting: is the *best* score actually good, in absolute terms, or just good *relative to its neighbors*?
+
+```python
+def retrieve(query, documents, top_k=3, min_score=0.3):
+    scored = [(doc, similarity(query, doc)) for doc in documents]
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+
+    if not scored or scored[0][1] < min_score:
+        return None  # nothing genuinely relevant found
+
+    return scored[:top_k]
+```
+
+One extra line, one extra branch — but it changes the system's entire failure mode. Now, instead of confidently returning three low-quality matches for an unanswerable question, it can explicitly say "I don't have this."
+
+```
+Without a threshold:                  With a threshold:
+
+Query: "unrelated nonsense"           Query: "unrelated nonsense"
+  → Result 1 (score: 0.09)              → "No relevant information found"
+  → Result 2 (score: 0.08)                 (best score 0.09, below 0.3)
+  → Result 3 (score: 0.07)
+
+  (looks identical in shape to           (honest, and stops here -
+   a real, correct answer)                doesn't proceed to use these
+                                           weak matches for anything further)
+```
+
+That second column matters even more once retrieval feeds into something downstream — like a language model writing an answer from whatever got retrieved. Three weak, irrelevant matches handed to an LLM don't just look bad; they become the raw material for a confident, plausible-sounding, completely ungrounded answer. The threshold isn't just cleaning up search results — it's the gate that decides whether a downstream system gets to speak with false authority at all.
+
+## The part that's genuinely hard: picking the number
+
+This is where it stops being a clean engineering problem and becomes a judgment call. `min_score=0.3` isn't derived from a formula — it's set by actually looking at how your particular scoring method behaves on your particular data: run a batch of known-relevant queries and known-irrelevant queries, see where the scores naturally cluster, and set the line somewhere that separates them.
+
+```
+     known-irrelevant queries        known-relevant queries
+     score here  ↓                              ↓  score here
+  0.0 ─────●●●●●●─────┼─────────────────────●●●●●●───── 1.0
+                       ↑
+              pick your threshold
+              somewhere in this gap
+```
+
+Two things worth knowing before you pick a number:
+
+- **The right threshold depends entirely on what produced the score.** A scoring method with a fixed, interpretable range (roughly 0 to 1) supports a stable threshold you can reason about. A scoring method with an unbounded, corpus-size-dependent range doesn't — the same raw number can mean "extremely confident" on a small dataset and "barely registering" on a huge one. Know which kind of score you're gating on before you trust a fixed cutoff.
+- **There's an unavoidable tradeoff, not a perfect setting.** Set the threshold too low, and irrelevant results slip through. Set it too high, and you'll start rejecting genuinely relevant-but-imperfect matches, telling users "I don't know" when you actually did have something useful. There's no threshold that eliminates both failure modes — only one that balances them for your specific use case.
+
+## The actual rule
+
+**A retrieval system that always returns something isn't more helpful than one that can say "nothing relevant found" — it's just failing silently instead of failing loudly.**
+
+## Why this matters beyond search
+
+The deeper habit here isn't really about search scores specifically — it's about designing systems that are allowed to express uncertainty as a legitimate output, not just success or failure. A lot of software gets built around the unspoken assumption that every function call has to produce *a* result, so failure gets smuggled in as a low-quality result instead of an honest "I don't know" — an empty list read as zero matches, a low-confidence guess presented with the same formatting as a confident one, a default value standing in for "we actually have no idea." The fix is almost always the same shape as the one here: stop trusting that "it ran" means "it succeeded," and build an explicit path for the system to admit when it genuinely doesn't have an answer worth giving.
