@@ -18,6 +18,11 @@ export const metadata: Metadata = {
     url: `${site.url}/blog`,
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: `The Log — ${site.name}`,
+    description,
+  },
 };
 
 export default async function BlogIndexPage() {
