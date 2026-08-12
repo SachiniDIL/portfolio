@@ -8,20 +8,23 @@ export default function CountUp({
   prefix = "",
   suffix = "",
   duration = 1400,
+  decimals = 0,
 }: {
   from?: number;
   to: number;
   prefix?: string;
   suffix?: string;
   duration?: number;
+  decimals?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const format = (n: number) => n.toFixed(decimals);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      el.textContent = `${prefix}${to}${suffix}`;
+      el.textContent = `${prefix}${format(to)}${suffix}`;
       return;
     }
     let raf = 0;
@@ -33,13 +36,13 @@ export default function CountUp({
       const tick = (now: number) => {
         const t = Math.min((now - start) / duration, 1);
         const eased = 1 - Math.pow(1 - t, 3);
-        el.textContent = `${prefix}${Math.round(from + (to - from) * eased)}${suffix}`;
+        el.textContent = `${prefix}${format(from + (to - from) * eased)}${suffix}`;
         if (t < 1) raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
     };
     if (typeof IntersectionObserver === "undefined") {
-      el.textContent = `${prefix}${to}${suffix}`;
+      el.textContent = `${prefix}${format(to)}${suffix}`;
       return;
     }
     const rect = el.getBoundingClientRect();
@@ -60,12 +63,12 @@ export default function CountUp({
       observer.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [from, to, prefix, suffix, duration]);
+  }, [from, to, prefix, suffix, duration, decimals]);
 
   return (
     <span ref={ref}>
       {prefix}
-      {to}
+      {to.toFixed(decimals)}
       {suffix}
     </span>
   );

@@ -83,13 +83,6 @@ const practiceBuilds: PracticeBuild[] = [
     desc: "A from-scratch build covering the TanStack Query v5 mental model with the Next.js App Router: SSR patterns (prefetchQuery + dehydrate + HydrationBoundary), useQuery / useMutation / useQueries, dependent queries, and the two-cache system, backed by MongoDB Atlas.",
     stack: "Next.js App Router · TanStack Query v5 · MongoDB Atlas",
   },
-  {
-    name: "simple-rag",
-    sub: "retrieval-augmented generation, built by hand",
-    desc: "A full-stack RAG pipeline built with no LangChain and no LlamaIndex, to understand retrieval at a mechanical level: custom chunking with configurable overlap, a from-scratch NumPy vector store, hybrid search combining BM25 and semantic embeddings via Reciprocal Rank Fusion, a relevance threshold that refuses to answer when nothing in the corpus is relevant, and local, free LLM generation via Ollama. A hand-written hashing embedder built alongside the real one gave a direct, measured comparison — on nonsense queries it scored false confidence up to 0.45, while real semantic embeddings correctly scored ~0.07–0.11.",
-    stack: "Python · FastAPI · sentence-transformers · rank-bm25 · NumPy · Ollama · Next.js · TanStack Query",
-    repo: { label: "github repo", href: "https://github.com/SachiniDIL/simple-RAG" },
-  },
 ];
 
 const repoLinkClasses =
@@ -101,6 +94,11 @@ type CaseFile = {
   sub: string;
   meta: string;
   paragraphs: string[];
+  stats?: {
+    label: string;
+    desc: string;
+    count: { to: number; from?: number; prefix?: string; suffix?: string; decimals?: number };
+  }[];
   stack: string;
   repo: { label: string; href: string };
 };
@@ -124,7 +122,7 @@ const caseFiles: CaseFile[] = [
   },
   {
     num: "03",
-    name: "Ruby",
+    name: "Villa Management System",
     sub: "villa operations management",
     meta: "Group project — 8-person team · Feb — May 2024",
     paragraphs: [
@@ -135,6 +133,29 @@ const caseFiles: CaseFile[] = [
     repo: {
       label: "github repo",
       href: "https://github.com/Silverviles/Ruby",
+    },
+  },
+  {
+    num: "04",
+    name: "simple-RAG",
+    sub: "retrieval-augmented generation, built by hand",
+    meta: "Solo practice build — full-stack RAG pipeline · Jul — Aug 2026",
+    paragraphs: [
+      "A full-stack Retrieval-Augmented Generation system built entirely from scratch — no LangChain, no LlamaIndex — to understand retrieval at a mechanical level: custom chunking with configurable overlap, a from-scratch NumPy vector store, and hybrid search combining BM25 and semantic embeddings via Reciprocal Rank Fusion (RRF).",
+      "A relevance threshold explicitly refuses to answer when nothing in the corpus is actually relevant, instead of confidently returning irrelevant chunks. Generation runs locally and for free via Ollama — no paid LLM API anywhere in the pipeline.",
+    ],
+    stats: [
+      {
+        label: "False-confidence peak",
+        desc: "Highest similarity score a hand-written hashing embedder gave completely unrelated (nonsense) queries — versus ~0.07–0.11 for real semantic embeddings on the same queries, confirmed by direct comparison.",
+        count: { to: 0.45, decimals: 2 },
+      },
+    ],
+    stack:
+      "Python · FastAPI · sentence-transformers · rank-bm25 · NumPy · Ollama · Next.js · TanStack Query",
+    repo: {
+      label: "github repo",
+      href: "https://github.com/SachiniDIL/simple-RAG",
     },
   },
 ];
@@ -294,6 +315,30 @@ export default function Projects() {
                   <p key={paragraph.slice(0, 32)}>{paragraph}</p>
                 ))}
               </div>
+              {file.stats && (
+                <div
+                  className={`mt-10 grid grid-cols-1 gap-px border border-line bg-line ${
+                    file.stats.length === 1 ? "max-w-[420px]" : "sm:grid-cols-2 lg:grid-cols-4"
+                  }`}
+                >
+                  {file.stats.map((stat, i) => (
+                    <div
+                      key={stat.label}
+                      className="group bg-bg transition-colors duration-300 hover:bg-bg2"
+                    >
+                      <Reveal delay={i * 120} className="p-5 sm:p-7">
+                        <div className="display text-[clamp(44px,5vw,64px)] leading-none text-paper transition-all duration-300 group-hover:[text-shadow:0_0_40px_rgba(200,16,46,0.5)]">
+                          <CountUp {...stat.count} />
+                        </div>
+                        <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.2em] text-gold">
+                          {stat.label}
+                        </div>
+                        <p className="mt-3 text-[13.5px] leading-[1.6] text-muted">{stat.desc}</p>
+                      </Reveal>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="mt-8 font-mono text-xs uppercase tracking-[0.06em] text-muted">
                 {file.stack}
               </p>

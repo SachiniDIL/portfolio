@@ -17,12 +17,12 @@ const skillGroups = [
   {
     label: "Frontend",
     items:
-      "Next.js 15 (App Router) · TypeScript · Tailwind CSS (incl. v4) · React · Responsive design · TipTap & TinyMCE · HTML-to-JSX converter · SVG filters & animation · Accessibility (WCAG)",
+      "Next.js 15 (App Router) · TypeScript · Tailwind CSS (incl. v4) · React · Redux · Responsive design · TipTap & TinyMCE · HTML-to-JSX converter · SVG filters & animation · Accessibility (WCAG)",
   },
   {
     label: "Backend & Auth",
     items:
-      "Next.js API routes · HTTP-only cookie auth · Google OAuth · Flask (Python) with OCR · Spring Boot",
+      "Next.js API routes · JWT Auth · HTTP-only cookie auth · Google OAuth · Flask (Python) with OCR · Spring Boot",
   },
   {
     label: "Data",
