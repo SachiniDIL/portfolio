@@ -1,0 +1,102 @@
+---
+title: "TF-IDF, BM25, and Embeddings Are More Related Than You Think"
+slug: "tfidf-bm25-embeddings-family-tree"
+excerpt: "The usual story is a straight upgrade path — keyword search, then TF-IDF, then BM25, then embeddings. That's wrong in a specific way: it's a family tree that forks, and three of these four methods are close cousins while the fourth isn't in the family at all."
+coverImage: "/blog/13.jpg"
+coverImageAlt: "A glowing amber root system branching upward into a single trunk against total darkness"
+tags: ["embeddings", "semantic-search", "machine-learning"]
+draft: false
+---
+
+If you've read about search or RAG systems, you've probably run into four names, usually introduced as if they're unrelated technologies from different eras: raw keyword matching, TF-IDF, BM25, and embeddings. The framing is almost always chronological — "first we had keyword search, then TF-IDF improved it, then BM25 improved that, then embeddings came along and changed everything."
+
+That framing is misleading in a specific way. It's not a straight upgrade path where each one replaces the last. It's a family tree that forks — three of these four methods are close cousins solving the same problem in slightly better ways, and the fourth isn't really in the same family at all. Knowing which is which changes how you reason about picking (or combining) them.
+
+## The real question
+
+Where do these four methods actually diverge from each other, and where are they really just variations on the same idea?
+
+## The shared root: counting words
+
+Start at the most basic possible way to compare two pieces of text: count how many words they have in common.
+
+```python
+def raw_overlap(query, document):
+    query_words = query.lower().split()
+    doc_words = document.lower().split()
+    return sum(1 for w in query_words if w in doc_words)
+```
+
+This is the root of the tree. Everything else in the "counting" family is this same idea, refined.
+
+## Branch one: TF-IDF adds a sense of "which words matter"
+
+Plain word-counting has an obvious flaw: it treats every matching word as equally important. A document matching on "the" counts exactly the same as a document matching on "photosynthesis" — even though one of those tells you almost nothing and the other tells you a lot.
+
+TF-IDF (Term Frequency–Inverse Document Frequency) fixes this with one added idea: words that appear in *most* documents across your whole collection are common, generic, and should count for less. Words that appear in only a *few* documents are distinctive, and should count for more.
+
+```python
+import math
+
+def idf(word, all_documents):
+    docs_with_word = sum(1 for doc in all_documents if word in doc.lower().split())
+    return math.log(len(all_documents) / (1 + docs_with_word))
+```
+
+That's the entire conceptual leap: still counting words, but now each word's count gets multiplied by "how rare is this word, generally." "The" appears in nearly every document, so its weight collapses toward zero. "Photosynthesis" appears in a handful, so its weight stays high.
+
+## Branch two: BM25 is TF-IDF with two practical fixes
+
+BM25 doesn't introduce a new idea — it's TF-IDF with two specific, well-tested refinements bolted on:
+
+1. **Diminishing returns on repetition.** In plain TF-IDF, a word appearing 10 times scores roughly 10x higher than appearing once. BM25 caps this — the 10th occurrence of a word adds much less than the 2nd occurrence did. Mentioning "chunking" fifty times isn't fifty times more relevant than mentioning it once; at some point, repetition stops adding real signal.
+2. **Length normalization.** A 50-word document and a 5,000-word document matching the same query term shouldn't be scored as equally strong — the short document matching is a much stronger signal, since there was far less text for that match to happen by chance. BM25 adjusts for this.
+
+That's genuinely the whole difference. If TF-IDF is "count words, weighted by rarity," BM25 is "count words, weighted by rarity, with saturation and length adjustment" — a tuned, more careful version of the exact same idea, not a different idea.
+
+## Where the tree actually forks
+
+Raw counting, TF-IDF, and BM25 all share one unbreakable trait: they only ever look at **which literal words appear**. None of them have any concept of meaning. Two sentences describing the identical situation in completely different words score as totally unrelated to all three of them.
+
+```
+"the deadline was extended"  vs  "they pushed back the due date"
+
+Raw word overlap:  0 shared words (excluding "the")
+TF-IDF:            near-zero (no shared distinctive terms)
+BM25:               near-zero (same problem, just better-tuned zero)
+```
+
+Embeddings don't belong to this lineage at all. They don't count words, weighted or otherwise — they use a model trained on huge amounts of text to place entire sentences into a learned space where distance represents *meaning*, regardless of which specific words were used to express it. It's a different kind of tool solving a related but distinct problem, not another rung on the same ladder.
+
+```
+                    "compare two pieces of text"
+                              │
+              ┌───────────────┴───────────────┐
+              │                                 │
+      count matching words              model the meaning
+              │                                 │
+     raw overlap  →  TF-IDF  →  BM25      embeddings
+     (unweighted)  (rarity-    (+ satur-   (learned meaning-
+                    weighted)   -ation,      space, no word-
+                                length norm) counting at all)
+```
+
+## Side by side
+
+| | Raw count | TF-IDF | BM25 | Embeddings |
+|---|---|---|---|---|
+| Counts literal words | Yes | Yes | Yes | No |
+| Downweights common words | No | Yes | Yes | N/A — no counting happening |
+| Adjusts for document length | No | No | Yes | N/A |
+| Understands paraphrasing | No | No | No | Yes |
+| Understands exact rare terms | Weakly | Yes | Yes | Sometimes underweighted |
+
+That last row is worth sitting with. It's not "embeddings are strictly better" — embeddings trade away some precision on exact terms in exchange for understanding meaning. That's exactly why production search systems often run a BM25-family method *and* an embedding model side by side, merging both rankings, rather than picking a winner. They're not competing for the same job; they're covering each other's blind spots.
+
+## The actual rule
+
+**TF-IDF and BM25 aren't earlier, worse versions of embeddings — they're a different branch of the family tree entirely, and knowing which branch a tool comes from tells you which kind of question it's actually equipped to answer.**
+
+## Why this matters beyond search
+
+The "newer must mean strictly better, and it replaces the old thing" story is one of the most common mental shortcuts in software, and it's usually wrong in this exact way: the newer tool solves a genuinely different problem shape, not a strictly bigger version of the old problem. Before assuming a newer technique makes an older one obsolete, it's worth tracing the actual family tree — is this really the next generation of the same idea, or a different branch that happens to get compared against it because they're often used for similar-looking tasks? The answer changes whether you should be replacing the old tool or pairing it with the new one.
