@@ -1,0 +1,111 @@
+---
+title: "The Chunk-Boundary Problem Nobody Warns You About"
+slug: "chunk-boundary-problem"
+excerpt: "A clean 60-word chunking function that does exactly what it's told — and still manages to split 'penalty' from what caused it. The fix isn't smarter splitting, it's letting neighboring chunks share a little of each other on purpose."
+coverImage: "/blog/14.jpg"
+coverImageAlt: "Two red-outlined boxes of text lines sharing a glowing gold overlap zone at their seam, titled Chunk Overlap"
+tags: ["rag", "embeddings", "semantic-search"]
+draft: false
+---
+
+Splitting a long document into smaller pieces sounds like a solved problem before you've even started. Here's the obvious first attempt:
+
+```python
+def chunk_text(text, chunk_size=60):
+    words = text.split()
+    return [
+        " ".join(words[i:i + chunk_size])
+        for i in range(0, len(words), chunk_size)
+    ]
+```
+
+Clean, short, does exactly what it says. Run it on a real paragraph, though, and look at where the cuts actually land:
+
+```
+Chunk 1: "...students who submit assignments after the deadline will"
+Chunk 2: "receive a 10% penalty per day, unless an extension"
+```
+
+Neither half makes sense on its own. Chunk 1 promises a consequence and never delivers it. Chunk 2 states a consequence with no idea what triggered it. If you embedded each of these chunks separately and later searched for "late submission penalty," you might miss both — chunk 1 doesn't mention a penalty at all, and chunk 2 doesn't mention what caused it.
+
+The splitting function isn't buggy. It does exactly what `chunk_size=60` asked for. The problem is that word count and sentence boundaries have no relationship to each other — the code has no idea a sentence is even happening.
+
+## The real question
+
+How do you split a long document into pieces small enough to be useful, without severing the meaning that happens to sit at the seams?
+
+## The fix isn't smarter splitting — it's overlapping splitting
+
+The instinct is to reach for something smarter: detect sentence boundaries, never cut mid-sentence. That helps, but it doesn't fully solve the problem — a sentence can still carry meaning that depends on the sentence *before* or *after* it, and you can't detect that with punctuation rules alone. ("The deadline was moved. Students should plan accordingly." — split those into two chunks and the second sentence loses its antecedent.)
+
+The actual fix used in practice is simpler and more mechanical than "understand where sentences end": let consecutive chunks **overlap**, so that whatever sits near a boundary gets a second chance to survive intact in the neighboring chunk.
+
+```python
+def chunk_text(text, chunk_size=60, overlap=15):
+    words = text.split()
+    chunks = []
+    start = 0
+    step = chunk_size - overlap  # how far the window slides each time
+
+    while start < len(words):
+        end = min(start + chunk_size, len(words))
+        chunks.append(" ".join(words[start:end]))
+        if end == len(words):
+            break
+        start += step
+
+    return chunks
+```
+
+One extra parameter, one change to how far the window advances. Watch what it does to the same paragraph:
+
+```
+Window 1: [0:60]   → "...students who submit assignments after the deadline will
+                       receive a 10% penalty per day, unless an extension..."
+Window 2: [45:105] → "...receive a 10% penalty per day, unless an extension
+                       has been granted in advance..."
+```
+
+Both windows now contain the full sentence about the penalty — chunk 1 has it near the end, chunk 2 has it near the beginning. Whichever chunk gets retrieved later, the complete idea comes along with it. Nothing about the sentence boundaries had to be detected or understood; the overlap just makes it statistically very likely that anything sitting near a cut survives somewhere.
+
+```
+Without overlap (chunk_size=60, step=60):
+
+  [0────────60][60────────120][120────────180]
+        ↑ hard cut, nothing shared between chunks
+        a sentence straddling position 60 is
+        split with no recovery
+
+With overlap (chunk_size=60, overlap=15, step=45):
+
+  [0────────60]
+         [45────────105]
+                  [90────────150]
+        ↑ each window shares its last 15 words
+          with the next window's first 15 words
+```
+
+## The two dials, and what they actually trade off
+
+Two parameters now control the whole tradeoff, and it's worth being precise about what each one actually does:
+
+- **`chunk_size`** controls how much context each individual chunk carries. Too small, and a chunk gets embedded in isolation without enough surrounding text to make its meaning clear — a chunk that just says "This matters for two reasons" tells you almost nothing on its own. Too large, and a single chunk starts covering multiple distinct ideas at once, which dilutes what any one embedding actually represents — a chunk covering five different subtopics produces a vector that's a vague average of all five, matching none of them precisely.
+- **`overlap`** controls how much insurance you're buying against the boundary problem, at a direct cost: every word in the overlap zone gets embedded and stored *twice*, once in each neighboring chunk. More overlap means fewer sentences get orphaned at a cut, but also more storage, more redundant embeddings, and — if unmanaged — a retrieval system that returns near-duplicate chunks for the same underlying content.
+
+Neither dial has a universally correct setting. It depends on how dense the source material is, how long a typical complete idea runs in that material, and how much redundancy your storage budget can tolerate.
+
+## Side by side
+
+| | No overlap | With overlap |
+|---|---|---|
+| A sentence spanning a chunk boundary | Split in half, meaning lost in both pieces | Survives whole in at least one chunk |
+| Storage cost | Lower — no duplicated text | Higher — boundary text stored twice |
+| Retrieval risk | Missing content that got orphaned at a cut | Occasional near-duplicate chunks retrieved together |
+
+## The actual rule
+
+**Whenever you split something continuous into discrete pieces, the seams are where information quietly goes missing — and the fix usually isn't a smarter cut, it's letting neighboring pieces share a little of each other on purpose.**
+
+## Why this matters beyond text
+
+This exact shape of problem — continuous information getting cut into pieces, with real content lost right at the cut points — shows up well outside of chunking text for search. Video streaming keeps overlapping keyframes so seeking mid-stream doesn't land on a broken frame. Paginated API results often duplicate a record at the boundary between pages rather than risk losing one entirely if the underlying data shifts mid-query. Sliding-window algorithms in signal processing and distributed systems use the identical trick for the identical reason. The specific fix — overlap the windows — isn't a text-chunking technique. It's a general answer to "how do you divide something continuous into discrete pieces without silently losing whatever happens to sit at the edges," and once you've seen it solve the problem once, it's worth checking for whenever you're the one drawing the cut lines.
